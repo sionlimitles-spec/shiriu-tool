@@ -1,8 +1,15 @@
+// src/lib/api.ts
+
 export type DownloadResult = {
   title: string;
   thumbnail: string;
   author?: string;
-  formats: { label: string; url: string; type: "audio" | "video" }[];
+  duration?: string; // <-- Saya tambahkan kembali agar tidak error
+  formats: {
+    label: string;
+    url: string;
+    type: "audio" | "video";
+  }[];
 };
 
 export const detectPlatform = (url: string) => {
@@ -17,7 +24,6 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
 
   if (platform === "youtube") {
     try {
-      // API 1 (Nyxs)
       const res = await fetch(`https://api.nyxs.pw/dl/ytmp4?url=${encodeURIComponent(url)}`);
       const json = await res.json();
       if (json.status && json.result) {
@@ -32,7 +38,6 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
       }
       throw new Error("Gagal API 1");
     } catch (e) {
-      // Fallback API 2 (Siputzx)
       const res = await fetch(`https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(url)}`);
       const json = await res.json();
       if (json.status) {
@@ -51,7 +56,6 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
 
   if (platform === "tiktok") {
     try {
-      // API TikTok Sangat Stabil
       const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`);
       const json = await res.json();
       if (json.code === 0) {
