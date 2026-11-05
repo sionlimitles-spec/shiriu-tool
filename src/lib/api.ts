@@ -38,7 +38,7 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
           {
             label: `Video MP4 (${data.data.quality || 'HD'})`,
             url: data.data.url,
-            type: "video",
+            type: "video" as const, // <-- Perbaikan di sini
           }
         ]
       };
@@ -55,8 +55,8 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
         thumbnail: data.data.cover,
         author: data.data.author?.nickname || "TikTok User",
         formats: [
-          { label: "Video (No Watermark)", url: data.data.video, type: "video" },
-          { label: "Audio MP3", url: data.data.audio, type: "audio" }
+          { label: "Video (No Watermark)", url: data.data.video, type: "video" as const }, // <-- Perbaikan di sini
+          { label: "Audio MP3", url: data.data.audio, type: "audio" as const } // <-- Perbaikan di sini
         ].filter(f => f.url)
       };
     }
@@ -73,7 +73,7 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
         formats: data.data.map((item: any, index: number) => ({
           label: `Download Media ${index + 1}`,
           url: item.url,
-          type: item.type === "video" ? "video" : "audio",
+          type: (item.type === "video" ? "video" : "audio") as "video" | "audio", // <-- Perbaikan di sini
         }))
       };
     }
