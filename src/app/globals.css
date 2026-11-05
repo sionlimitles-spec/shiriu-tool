@@ -1,29 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-primary: #050505;
-  --color-bg-secondary: rgba(22, 22, 22, 0.6);
-  --color-bg-tertiary: rgba(31, 31, 31, 0.8);
+  --color-bg-main: #05070d;
+  --color-bg-card: #151823;
+  --color-brand: #00b4ff;
+  --color-brand-dark: #5b8cff;
+  --color-violet: #a78bfa;
   
-  --color-accent-cyan: #00C2FF;
-  --color-accent-dim: rgba(0, 194, 255, 0.15);
-  
-  --font-sans: var(--font-inter), sans-serif;
+  --color-text-main: #f4f6fb;
+  --color-text-muted: #b4bccd;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-hover: rgba(255, 255, 255, 0.14);
+
+  --font-sans: 'Outfit', sans-serif;
 }
 
 @layer base {
   body {
-    @apply bg-bg-primary text-white antialiased selection:bg-accent-cyan selection:text-bg-primary;
+    @apply bg-bg-main text-text-main antialiased selection:bg-brand selection:text-bg-main;
+    font-family: var(--font-sans);
     background-image: 
-      radial-gradient(circle at 50% -20%, rgba(0, 194, 255, 0.15), transparent 50%),
-      radial-gradient(circle at 0% 100%, rgba(0, 194, 255, 0.05), transparent 40%);
-    background-repeat: no-repeat;
+      radial-gradient(900px 520px at 50% -8%, rgba(0, 180, 255, 0.15), transparent 60%),
+      radial-gradient(600px 420px at 100% 30%, rgba(167, 139, 250, 0.1), transparent 60%);
     background-attachment: fixed;
     min-height: 100vh;
   }
-
+  
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--color-accent-cyan); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-brand); }
 }
