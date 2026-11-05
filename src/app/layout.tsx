@@ -1,34 +1,34 @@
 import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import { Inter } from "next/font/google";
 import Link from "next/link";
-import { Volume2 } from "lucide-react";
 import "./globals.css";
 
-const outfit = Outfit({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SHIRIUTOOL — Media Downloader",
-  description: "Download video dan musik tanpa watermark.",
+  title: "SHIRIU TOOL — All-in-One Platform",
+  description: "Streaming, Downloader, AI, dan Tools premium dalam satu genggaman.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id">
-      <body className={`${outfit.className} antialiased`}>
-        {/* HEADER FIXED */}
-        <header className="fixed top-0 left-0 right-0 z-50 bg-[#05070d]/80 backdrop-blur-md border-b border-white/10">
-          <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between">
-            <Link href="/" className="text-xl font-black tracking-widest text-white">
+      <body className={`${inter.className} antialiased`}>
+        {/* Header Premium */}
+        <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-[#030712]/80 backdrop-blur-md">
+          <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+            <Link href="/" className="text-xl font-black tracking-widest text-white flex items-center gap-2">
               SHIRIU<span className="text-[#00b4ff]">TOOL</span>
             </Link>
-            <button className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 text-white">
-              <Volume2 size={18} />
-            </button>
+            <div className="flex items-center gap-4">
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-xs font-medium text-green-400">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> System Online
+              </span>
+            </div>
           </div>
         </header>
 
-        {/* KONTEN UTAMA (Diberi padding-top agar tidak tertutup header) */}
-        <main className="pt-24 pb-12">
+        <main className="max-w-5xl mx-auto px-4 py-8">
           {children}
         </main>
       </body>
