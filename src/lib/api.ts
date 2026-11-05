@@ -37,16 +37,15 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
         thumbnail: data.thumbnail,
         author: data.author,
         formats: [
-          // Dummy simulasi opsi bitrate/resolusi yang Anda minta
           ...data.medias.filter((m: any) => m.type === 'video').map((v: any) => ({
             label: `MP4 ${v.quality} (${v.formattedSize})`,
             url: v.url,
-            type: "video"
+            type: "video" as const, // <-- Perbaikan di sini
           })),
           ...data.medias.filter((m: any) => m.type === 'audio').map((a: any) => ({
             label: `MP3 ${a.quality} (${a.formattedSize})`,
             url: a.url,
-            type: "audio"
+            type: "audio" as const, // <-- Perbaikan di sini
           }))
         ]
       };
@@ -63,8 +62,8 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
         thumbnail: data.thumbnail,
         author: data.author,
         formats: [
-          { label: "Video (No Watermark)", url: data.video, type: "video" },
-          { label: "Audio MP3", url: data.audio, type: "audio" }
+          { label: "Video (No Watermark)", url: data.video, type: "video" as const }, // <-- Perbaikan di sini
+          { label: "Audio MP3", url: data.audio, type: "audio" as const } // <-- Perbaikan di sini
         ].filter(f => f.url)
       };
     }
@@ -81,7 +80,7 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
         formats: data.data.map((item: any, index: number) => ({
           label: `Download Media ${index + 1} (${item.type})`,
           url: item.url,
-          type: item.type === "video" ? "video" : "audio"
+          type: (item.type === "video" ? "video" : "audio") as "video" | "audio", // <-- Perbaikan di sini
         }))
       };
     }
@@ -98,7 +97,7 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
         author: data.artist,
         duration: data.duration,
         formats: [
-          { label: "Audio MP3", url: data.url, type: "audio" }
+          { label: "Audio MP3", url: data.url, type: "audio" as const } // <-- Perbaikan di sini
         ]
       };
     }
