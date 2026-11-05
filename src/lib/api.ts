@@ -25,79 +25,62 @@ export const fetchDownloadData = async (url: string): Promise<DownloadResult> =>
   
   try {
     if (platform === "youtube") {
-      const res = await fetch(`https://api.betabotz.eu.org/api/download/ytmp4?url=${encodeURIComponent(url)}&apikey=beta`);
+      const res = await fetch(`https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       
-      if (data.status !== 200) throw new Error("Gagal mengambil data YouTube. Pastikan link valid.");
+      if (!data.status) throw new Error("Gagal mengambil data YouTube.");
       
       return {
-        title: data.result.title,
-        thumbnail: data.result.thumbnail,
-        author: data.result.author,
+        title: data.data.title,
+        thumbnail: data.data.thumbnail,
+        author: data.data.author || "YouTube",
         formats: [
           {
-            label: `Video MP4 (${data.result.quality || 'HD'})`,
-            url: data.result.url,
-            type: "video" as const,
+            label: `Video MP4 (${data.data.quality || 'HD'})`,
+            url: data.data.url,
+            type: "video",
           }
         ]
       };
     }
 
     if (platform === "tiktok") {
-      const res = await fetch(`https://api.betabotz.eu.org/api/download/ttdl?url=${encodeURIComponent(url)}&apikey=beta`);
+      const res = await fetch(`https://api.siputzx.my.id/api/d/tiktok?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       
-      if (data.status !== 200) throw new Error("Gagal mengambil data TikTok.");
+      if (!data.status) throw new Error("Gagal mengambil data TikTok.");
       
       return {
-        title: data.result.title || "TikTok Video",
-        thumbnail: data.result.thumbnail,
-        author: data.result.author,
+        title: data.data.title || "TikTok Video",
+        thumbnail: data.data.cover,
+        author: data.data.author?.nickname || "TikTok User",
         formats: [
-          { label: "Video (No Watermark)", url: data.result.video, type: "video" as const },
-          { label: "Audio MP3", url: data.result.audio, type: "audio" as const }
+          { label: "Video (No Watermark)", url: data.data.video, type: "video" },
+          { label: "Audio MP3", url: data.data.audio, type: "audio" }
         ].filter(f => f.url)
       };
     }
 
     if (platform === "instagram") {
-      const res = await fetch(`https://api.betabotz.eu.org/api/download/igdl?url=${encodeURIComponent(url)}&apikey=beta`);
+      const res = await fetch(`https://api.siputzx.my.id/api/d/igdl?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       
-      if (data.status !== 200) throw new Error("Gagal mengambil data Instagram (Pastikan akun tidak diprivat).");
+      if (!data.status) throw new Error("Gagal mengambil data Instagram.");
       
       return {
         title: "Instagram Media",
-        thumbnail: data.result[0]?.thumbnail || "",
-        formats: data.result.map((item: any, index: number) => ({
+        thumbnail: data.data[0]?.thumbnail || "",
+        formats: data.data.map((item: any, index: number) => ({
           label: `Download Media ${index + 1}`,
           url: item.url,
-          type: (item.type === "video" ? "video" : "audio") as "video" | "audio",
+          type: item.type === "video" ? "video" : "audio",
         }))
-      };
-    }
-
-    if (platform === "spotify") {
-      const res = await fetch(`https://api.ryzendesu.vip/api/downloader/spotify?url=${encodeURIComponent(url)}`);
-      const data = await res.json();
-      
-      if (!data.success) throw new Error("Gagal mengambil data Spotify.");
-      
-      return {
-        title: data.title,
-        thumbnail: data.thumbnail,
-        author: data.artist,
-        duration: data.duration,
-        formats: [
-          { label: "Audio MP3", url: data.url, type: "audio" as const }
-        ]
       };
     }
 
     throw new Error("Platform belum didukung secara penuh saat ini.");
 
   } catch (error: any) {
-    throw new Error(error.message || "Gagal terhubung ke server API. Coba lagi nanti.");
+    throw new Error(error.message || "Gagal terhubung ke server. Coba lagi nanti.");
   }
 };
