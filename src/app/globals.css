@@ -9,12 +9,11 @@
     --card-border: rgba(0, 0, 0, 0.08);
   }
 
-  /* Warna mode gelap */
   .dark {
     --bg: #050505;
     --text: #f8fafc;
     --text-muted: #a1a1aa;
-    --card-bg: rgba(20, 20, 20, 0.6);
+    --card-bg: rgba(25, 25, 25, 0.6); /* Sedikit lebih terang dari BG agar card terlihat */
     --card-border: rgba(255, 255, 255, 0.1);
   }
 
@@ -25,17 +24,21 @@
     transition: color 0.4s ease;
     overflow-x: hidden;
     min-height: 100vh;
+    background-color: var(--bg);
     
-    /* ANIMASI BACKGROUND MESH GRADIENT */
-    background: linear-gradient(-45deg, #050505, #111827, #0f172a, #1e1b4b);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
+    /* Animasi Aurora Cahaya */
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 50%),
+      radial-gradient(circle at 85% 30%, rgba(255, 255, 255, 0.04) 0%, transparent 50%);
+    background-size: 200% 200%;
+    animation: aurora 10s infinite alternate;
   }
 
   .light body {
-    background: linear-gradient(-45deg, #f8fafc, #e2e8f0, #f1f5f9, #cbd5e1);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(0, 0, 0, 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 85% 30%, rgba(0, 0, 0, 0.03) 0%, transparent 50%);
+    animation: aurora 10s infinite alternate;
   }
 
   ::-webkit-scrollbar { width: 4px; }
@@ -43,10 +46,9 @@
   ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
 }
 
-@keyframes gradientBG {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes aurora {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
 }
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
