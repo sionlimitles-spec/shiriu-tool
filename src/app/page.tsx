@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { toolsData } from "@/lib/data";
 import ToolCard from "@/components/ui/ToolCard";
-import { Search, User, Smartphone, Battery, Crown, MessageCircle, Home, LayoutGrid, Brain } from "lucide-react";
+// PERBAIKAN: Mengubah import 'Home' menjadi 'HomeIcon'
+import { Search, User, Smartphone, Battery, Crown, MessageCircle, Home as HomeIcon, LayoutGrid, Brain } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -16,7 +17,6 @@ export default function Home() {
     <div className="min-h-screen pb-32">
       
       {/* ================= HERO IMAGE (BAGIAN ATAS) ================= */}
-      {/* Menggunakan gambar/animasi abstrak sebagai ganti video agar ringan */}
       <div className="relative w-full h-[220px] overflow-hidden rounded-b-[40px] border-b border-white/10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/40 to-[#050505]/90 z-10"></div>
         <img 
@@ -93,7 +93,8 @@ export default function Home() {
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
         <div className="flex items-center gap-1 p-1.5 rounded-full bg-black/40 backdrop-blur-2xl border border-white/20 shadow-2xl">
           <button className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black">
-            <Home size={18} />
+            {/* PERBAIKAN: Menggunakan HomeIcon di sini */}
+            <HomeIcon size={18} />
             <span className="text-xs font-bold">Home</span>
           </button>
           <button className="p-2.5 text-gray-300 hover:text-white transition-colors"><LayoutGrid size={20} /></button>
