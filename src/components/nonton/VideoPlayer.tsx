@@ -7,9 +7,10 @@ export default function VideoPlayer({ data }: { data: any }) {
   const [activeEp, setActiveEp] = useState(1);
 
   const getEmbedUrl = () => {
-    if (data.type === "anime") return `https://vidsrc.to/embed/anime/${data.id}/${activeEp}`;
-    if (data.type === "film") return `https://vidsrc.to/embed/movie/${data.id}`;
-    return `https://vidsrc.to/embed/tv/${data.id}/1/${activeEp}`;
+    // Menggunakan vidsrc.xyz yang lebih stabil
+    if (data.type === "anime") return `https://vidsrc.xyz/embed/anime?mal=${data.id}&episode=${activeEp}`;
+    if (data.type === "film") return `https://vidsrc.xyz/embed/movie?tmdb=${data.id}`;
+    return `https://vidsrc.xyz/embed/tv?tmdb=${data.id}&season=1&episode=${activeEp}`; // Donghua
   };
 
   const handlePlay = (ep: number) => {
