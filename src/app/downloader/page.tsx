@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check } from "lucide-react";
 import { fetchDownloadData, DownloadResult } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,17 +11,41 @@ export default function DownloaderPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState<DownloadResult | null>(null);
 
-  // State untuk fitur baru
+  // State Fitur Baru
   const [videoQuality, setVideoQuality] = useState<"original" | "hd">("original");
   const [audioBitrate, setAudioBitrate] = useState("320kbps");
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const bitrateOptions = ["64kbps", "128kbps", "192kbps", "256kbps", "320kbps"];
+
+  // Fungsi Membersihkan Nama File
+  const getCleanFilename = (title: string, ext: string) => {
+    const cleanTitle = title.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+    return `${cleanTitle} - by Shiriu.${ext}`;
+  };
+
+  // Fungsi Menghitung Estimasi Ukuran File Audio
+  // Rumus: (Bitrate * Durasi dalam detik) / (8 * 1024)
+  const getEstimatedAudioSize = (bitrateStr: string) => {
+    const bitrate = parseInt(bitrateStr);
+    // Jika API tidak memberikan durasi, kita asumsikan rata-rata 3 menit (180 detik)
+    const duration = result?.duration ? parseInt(result.duration.split(':')[0]) * 60 + parseInt(result.duration.split(':')[1]) : 180;
+    const sizeInBytes = (bitrate * 1000 * duration) / 8;
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+    return sizeInMB.toFixed(1) + " MB";
+  };
 
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
       setUrl(text);
     } catch (err) {}
+  };
+
+  const handleCopyLink = (text: string, index: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,11 +71,11 @@ export default function DownloaderPage() {
       
       {/* Title */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-black text-[var(--text)] mb-3 tracking-tight">
+        <h1 className="text-3xl md:text-4xl font-black text-[var(--text)] mb-2 tracking-tight">
           Media <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00b4ff] to-blue-500">Downloader</span>
         </h1>
         <p className="text-[var(--text-muted)] text-sm">
-          Unduh video dan musik dengan kualitas terbaik.
+          Unduh video & musik dengan kualitas terbaik.
         </p>
       </div>
 
@@ -64,7 +88,7 @@ export default function DownloaderPage() {
           <input
             type="url"
             required
-            placeholder="Tempel link YouTube atau Spotify..."
+            placeholder="Tempel link di sini..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             className="flex-1 bg-transparent border-none text-[var(--text)] outline-none placeholder:text-[var(--text-muted)] text-[15px]"
@@ -103,42 +127,32 @@ export default function DownloaderPage() {
         )}
       </AnimatePresence>
 
-      {/* TUTORIAL (Muncul jika belum ada hasil) */}
-      {!result && !loading && (
-        <div className="grid gap-4 mt-4">
-          {[
-            { num: "1", title: "Salin Link", desc: "Buka YouTube/Spotify, salin link yang ingin diunduh." },
-            { num: "2", title: "Tempel & Proses", desc: "Paste link di atas, lalu klik tombol Ambil Media." },
-            { num: "3", title: "Atur Kualitas", desc: "Pilih bitrate MP3 atau tingkatkan kualitas video ke HD." }
-          ].map((step, i) => (
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }} key={step.num} className="flex gap-4 p-5 rounded-[24px] bg-[var(--card-bg)] border border-[var(--card-border)] backdrop-blur-xl items-start shadow-sm">
-              <span className="flex-none w-10 h-10 rounded-full flex items-center justify-center font-bold text-[#00b4ff] bg-[#00b4ff]/10 border border-[#00b4ff]/20 text-lg">
-                {step.num}
-              </span>
-              <div>
-                <b className="text-[var(--text)] block mb-1 text-[15px]">{step.title}</b>
-                <span className="text-sm text-[var(--text-muted)] leading-relaxed">{step.desc}</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {/* ================= HASIL DOWNLOAD & OPSI BARU ================= */}
+      {/* HASIL DOWNLOAD */}
       <AnimatePresence>
         {result && !loading && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[var(--card-bg)] border border-[var(--card-border)] backdrop-blur-xl rounded-[32px] overflow-hidden mt-4 shadow-2xl">
             
-            {/* Thumbnail & Info */}
-            <div className="relative">
+            {/* Thumbnail dengan Efek Kaca */}
+            <div className="relative group">
               <img src={result.thumbnail} alt="Thumbnail" className="w-full aspect-video object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[var(--card-bg)] via-[var(--card-bg)]/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/60 to-transparent opacity-90" />
+              
+              {/* Tombol Play Preview */}
+              <a 
+                href={result.formats.find(f => f.type === 'video')?.url || result.formats[0]?.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white/20 backdrop-blur-md border border-white/30 rounded-full flex items-center justify-center text-white hover:scale-110 transition-transform opacity-0 group-hover:opacity-100"
+              >
+                <Play size={24} fill="white" className="ml-1" />
+              </a>
+
               <div className="absolute bottom-4 left-4 right-4">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-xs font-bold text-green-500 mb-2">
-                  <CheckCircle2 size={14} /> Siap Diunduh
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/20 border border-green-500/30 text-[10px] font-bold text-green-400 mb-2 backdrop-blur-md">
+                  <CheckCircle2 size={12} /> Siap Diunduh
                 </span>
-                <h3 className="text-lg font-bold text-[var(--text)] leading-tight line-clamp-2 drop-shadow-sm">{result.title}</h3>
-                <p className="text-sm text-[var(--text-muted)] mt-1 font-medium">{result.author}</p>
+                <h3 className="text-lg font-bold text-white leading-tight line-clamp-2 drop-shadow-md">{result.title}</h3>
+                <p className="text-xs text-gray-300 mt-1 font-medium">{result.author} {result.duration && `• ${result.duration}`}</p>
               </div>
             </div>
             
@@ -148,27 +162,47 @@ export default function DownloaderPage() {
               {result.formats.some(f => f.type === "video") && (
                 <div>
                   <h4 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-2">
-                    <Play size={16} className="text-blue-500" /> Opsi Video (MP4)
+                    <Play size={16} className="text-blue-500" /> Kualitas Video (MP4)
                   </h4>
+                  
+                  {/* Toggle Original / HD */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <button 
                       onClick={() => setVideoQuality("original")}
                       className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "original" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}
                     >
-                      Original <br/><span className="text-[10px] font-normal opacity-70">(Tanpa Kompres)</span>
+                      Original <br/><span className="text-[10px] font-normal opacity-70">Tanpa Kompres</span>
                     </button>
                     <button 
                       onClick={() => setVideoQuality("hd")}
                       className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "hd" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}
                     >
-                      HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">(Upscale + Tajam)</span>
+                      HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">Upscale + Tajam</span>
                     </button>
                   </div>
+                  
+                  {/* Tombol Download Video */}
                   {result.formats.filter(f => f.type === "video").map((format, idx) => (
-                    <a key={idx} href={format.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-[var(--text-muted)]/5 hover:bg-[var(--text-muted)]/10 border border-[var(--card-border)] p-4 rounded-2xl transition-all group">
-                      <span className="text-sm font-bold text-[var(--text)]">{format.label} {videoQuality === "hd" ? "(Upscaled)" : ""}</span>
-                      <Download size={20} className="text-[var(--text-muted)] group-hover:text-[#00b4ff] transition-colors" />
-                    </a>
+                    <div key={idx} className="flex items-center justify-between bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-2 rounded-2xl mb-2">
+                      <div className="flex flex-col ml-2">
+                        <span className="text-[13px] font-bold text-[var(--text)]">{format.label} {videoQuality === "hd" ? "(Upscaled)" : ""}</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">Klik untuk mengunduh</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleCopyLink(format.url, idx)} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+                          {copiedIndex === idx ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                        </button>
+                        <a 
+                          href={format.url} 
+                          download={getCleanFilename(result.title, 'mp4')}
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="p-2.5 bg-[#00b4ff] rounded-xl text-white hover:bg-blue-600 transition-colors shadow-md"
+                        >
+                          <Download size={16} />
+                        </a>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -177,8 +211,10 @@ export default function DownloaderPage() {
               {result.formats.some(f => f.type === "audio") && (
                 <div>
                   <h4 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-2">
-                    <Music size={16} className="text-purple-500" /> Opsi Audio (MP3)
+                    <Music size={16} className="text-purple-500" /> Kualitas Audio (MP3)
                   </h4>
+                  
+                  {/* Pilihan Bitrate */}
                   <div className="flex items-center gap-3 mb-3 bg-[var(--text-muted)]/5 p-3 rounded-xl border border-[var(--card-border)]">
                     <Settings2 size={18} className="text-[var(--text-muted)]" />
                     <select 
@@ -187,21 +223,37 @@ export default function DownloaderPage() {
                       className="bg-transparent text-sm font-bold text-[var(--text)] outline-none w-full cursor-pointer"
                     >
                       {bitrateOptions.map(bit => (
-                        <option key={bit} value={bit} className="bg-[var(--bg)] text-[var(--text)]">{bit}</option>
+                        <option key={bit} value={bit} className="bg-[var(--bg)] text-[var(--text)]">
+                          {bit} (Estimasi: {getEstimatedAudioSize(bit)})
+                        </option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Tombol Download Audio */}
                   {result.formats.filter(f => f.type === "audio").map((format, idx) => (
-                    <a key={idx} href={format.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-[var(--text-muted)]/5 hover:bg-[var(--text-muted)]/10 border border-[var(--card-border)] p-4 rounded-2xl transition-all group">
-                      <span className="text-sm font-bold text-[var(--text)]">Download Audio ({audioBitrate})</span>
-                      <Download size={20} className="text-[var(--text-muted)] group-hover:text-purple-500 transition-colors" />
-                    </a>
+                    <div key={idx} className="flex items-center justify-between bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-2 rounded-2xl">
+                      <div className="flex flex-col ml-2">
+                        <span className="text-[13px] font-bold text-[var(--text)]">Audio MP3 ({audioBitrate})</span>
+                        <span className="text-[10px] text-[var(--text-muted)]">Estimasi: {getEstimatedAudioSize(audioBitrate)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => handleCopyLink(format.url, idx + 10)} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+                          {copiedIndex === (idx + 10) ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                        </button>
+                        <a 
+                          href={format.url} 
+                          download={getCleanFilename(result.title, 'mp3')}
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="p-2.5 bg-purple-500 rounded-xl text-white hover:bg-purple-600 transition-colors shadow-md"
+                        >
+                          <Download size={16} />
+                        </a>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              )}
-              
-              {result.formats.length === 0 && (
-                <p className="text-center text-sm text-[var(--text-muted)]">Format tidak tersedia untuk link ini.</p>
               )}
 
             </div>
@@ -210,7 +262,7 @@ export default function DownloaderPage() {
       </AnimatePresence>
 
       <p className="text-center text-xs text-[var(--text-muted)] mt-12 pb-10">
-        Gunakan hanya untuk konten milikmu atau yang diizinkan pemiliknya.
+        File akan otomatis diganti namanya menjadi judul video + "by Shiriu".
       </p>
     </div>
   );
