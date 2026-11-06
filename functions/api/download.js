@@ -11,17 +11,14 @@ export async function onRequest(context) {
 
   const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
   const isTikTok = targetUrl.includes("tiktok.com");
-  const isInstagram = targetUrl.includes("instagram.com");
 
   let apiUrl = "";
 
+  // Gunakan API dari Vercel untuk menghindari konflik DNS Cloudflare
   if (isYouTube) {
-    // Coba API YouTube yang lebih stabil
-    apiUrl = `https://api.nyxs.pw/dl/ytmp4?url=${encodeURIComponent(targetUrl)}`;
+    apiUrl = `https://btch-downloader-api-green.vercel.app/api/download/youtube?url=${encodeURIComponent(targetUrl)}`;
   } else if (isTikTok) {
-    apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`;
-  } else if (isInstagram) {
-    apiUrl = `https://api.siputzx.my.id/api/d/igdl?url=${encodeURIComponent(targetUrl)}`;
+    apiUrl = `https://btch-downloader-api-green.vercel.app/api/download/tiktok?url=${encodeURIComponent(targetUrl)}`;
   } else {
     return new Response(JSON.stringify({ error: "Platform belum didukung" }), {
       status: 400,
@@ -32,16 +29,24 @@ export async function onRequest(context) {
   try {
     const apiResponse = await fetch(apiUrl, {
       headers: { "User-Agent": "Mozilla/5.0" },
-      signal: AbortSignal.timeout(10000), // Batas waktu 10 detik
+      signal: AbortSignal.timeout(15000), // Batas waktu 15 detik
     });
 
-    const text = await apiResponse.text(); // Baca teks mentah dulu untuk menghindari error parsing
+    const text = await apiResponse.text();
 
     if (!apiResponse.ok) {
-      throw new Error(`Upstream error (${apiResponse.status}): ${text.slice(0, 100)}`);
+      // Teruskan pesan error dari upstream agar mudah didiagnosis
+      let errorMsg = `Upstream error (${apiResponse.status})`;
+      try {
+        const errJson = JSON.parse(text);
+        errorMsg += `: ${errJson.error?.message || text.slice(0, 150)}`;
+      } catch (e) {
+        errorMsg += `: ${text.slice(0, 150)}`;
+      }
+      throw new Error(errorMsg);
     }
 
-    const data = JSON.parse(text); // Parse setelah dipastikan tidak error
+    const data = JSON.parse(text);
 
     return new Response(JSON.stringify(data), {
       status: 200,
@@ -49,7 +54,7 @@ export async function onRequest(context) {
     });
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message || "Gagal menghubungi server sumber" }), {
-      status: 502, // Bad Gateway
+      status: 502,
       headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
