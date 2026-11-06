@@ -25,7 +25,7 @@ export default function DownloaderPage() {
 
   const ffmpegRef = useRef<any>(null);
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // Khusus untuk proses FFmpeg
   const [processMessage, setProcessMessage] = useState("");
 
   const bitrateOptions = ["64kbps", "128kbps", "192kbps", "256kbps", "320kbps"];
@@ -110,104 +110,75 @@ export default function DownloaderPage() {
     }
   };
 
-  // FUNGSI DOWNLOAD: AUDIO PAKAI FFMPEG, VIDEO LANGSUNG (ANTI TIMEOUT)
+  // FUNGSI DOWNLOAD DENGAN FFMPEG (AUDIO & VIDEO)
   const handleDownload = async (mediaUrl: string, filename: string, id: string, type: "video" | "audio") => {
     setDownloadingType(id);
     setDownloadProgress(0);
     setIsProcessing(false);
 
     try {
-      if (type === "video") {
-        // ==========================================
-        // VIDEO: UNDUH LANGSUNG TANPA FFMPEG (ANTI TIMEOUT)
-        // ==========================================
-        setProcessMessage("Mengunduh video HD...");
-        setIsProcessing(true);
-        
-        // Gunakan fetch dengan progress
-        const response = await fetch(`/api/proxy?url=${encodeURIComponent(mediaUrl)}`);
-        if (!response.ok) throw new Error("Gagal mengambil video.");
-        
-        const contentLength = response.headers.get('content-length');
-        const total = parseInt(contentLength || '0', 10);
-        let loaded = 0;
-        
-        const reader = response.body?.getReader();
-        const chunks = [];
-        
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            loaded += value.length;
-            if (total) {
-              setDownloadProgress(Math.round((loaded / total) * 100));
-            }
-          }
-        }
-        
-        const blob = new Blob(chunks);
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(blobUrl);
+      setIsProcessing(true);
+      await loadFFmpeg();
+      const ffmpeg = ffmpegRef.current;
+      const { fetchFile } = await import('@ffmpeg/util');
 
-      } else {
-        // ==========================================
-        // AUDIO: GUNAKAN FFMPEG UNTUK BITRATE ASLI
-        // ==========================================
-        setIsProcessing(true);
-        await loadFFmpeg();
-        const ffmpeg = ffmpegRef.current;
-        const { fetchFile } = await import('@ffmpeg/util');
+      setProcessMessage("Mengunduh file asli...");
+      const response = await fetch(`/api/proxy?url=${encodeURIComponent(mediaUrl)}`);
+      if (!response.ok) throw new Error("Gagal mengambil file asli.");
+      const originalBlob = await response.blob();
+      
+      const inputExt = type === "video" ? "mp4" : "mp3";
+      const inputName = `input_${id}.${inputExt}`;
+      const outputName = `output_${id}.${inputExt}`;
 
-        setProcessMessage("Mengunduh audio asli...");
-        const response = await fetch(`/api/proxy?url=${encodeURIComponent(mediaUrl)}`);
-        if (!response.ok) throw new Error("Gagal mengambil audio.");
-        const originalBlob = await response.blob();
-        
-        const inputName = `input_${id}.mp3`;
-        const outputName = `output_${id}.mp3`;
+      setProcessMessage("Menulis ke memori...");
+      await ffmpeg.writeFile(inputName, await fetchFile(originalBlob));
 
-        setProcessMessage("Memproses audio...");
-        await ffmpeg.writeFile(inputName, await fetchFile(originalBlob));
-
+      let execArgs: string[] = [];
+      
+      if (type === "audio") {
         const bitrateNum = parseInt(audioBitrate);
-        const execArgs = ['-i', inputName, '-vn', '-b:a', `${bitrateNum}k`, outputName];
-
-        ffmpeg.on('progress', ({ progress }: { progress: number }) => {
-          const percent = Math.round(progress * 100);
-          setDownloadProgress(percent > 100 ? 100 : percent);
-        });
-
-        await ffmpeg.exec(execArgs);
-
-        const data = await ffmpeg.readFile(outputName);
-        await ffmpeg.deleteFile(inputName);
-        await ffmpeg.deleteFile(outputName);
-
-        const processedBlob = new Blob([data as any], { type: "audio/mpeg" });
-        if (processedBlob.size === 0) throw new Error("File kosong.");
-
-        const blobUrl = window.URL.createObjectURL(processedBlob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(blobUrl);
+        setProcessMessage(`Mengubah bitrate ${audioBitrate}...`);
+        execArgs = ['-i', inputName, '-vn', '-b:a', `${bitrateNum}k`, outputName];
+      } else if (type === "video") {
+        if (videoQuality === "hd") {
+          setProcessMessage("Upscale 1080p (Proses lambat)...");
+          execArgs = ['-i', inputName, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'copy', outputName];
+        } else {
+          setProcessMessage("Memproses video...");
+          execArgs = ['-i', inputName, '-c', 'copy', outputName];
+        }
       }
+
+      ffmpeg.on('progress', ({ progress }: { progress: number }) => {
+        const percent = Math.round(progress * 100);
+        setDownloadProgress(percent > 100 ? 100 : percent);
+      });
+
+      await ffmpeg.exec(execArgs);
+
+      setProcessMessage("Menyelesaikan file...");
+      const data = await ffmpeg.readFile(outputName);
+      
+      await ffmpeg.deleteFile(inputName);
+      await ffmpeg.deleteFile(outputName);
+
+      const processedBlob = new Blob([data as any], { type: type === "video" ? "video/mp4" : "audio/mpeg" });
+      if (processedBlob.size === 0) throw new Error("File kosong.");
+
+      const blobUrl = window.URL.createObjectURL(processedBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
 
     } catch (err: any) {
       console.error(err);
-      setError("Proses gagal/timeout. Mengunduh file asli...");
-      window.open(mediaUrl, '_blank'); // Fallback terakhir
+      setError("Gagal memproses/timeout. Mengunduh file asli...");
+      window.open(mediaUrl, '_blank'); // Fallback
     } finally {
       setIsProcessing(false);
       setDownloadProgress(0);
@@ -311,8 +282,9 @@ export default function DownloaderPage() {
                   {result.formats.filter(f => f.type === "video").map((format, idx) => (
                     <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl mb-2 overflow-hidden">
                       
-                      {(downloadingType === `video-${idx}` || isProcessing) && (
-                        <div className="absolute top-0 left-0 h-full bg-[#00b4ff]/10 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                      {/* PROGRESS BAR FIX: Hanya muncul jika ID cocok */}
+                      {downloadingType === `video-${idx}` && (
+                        <div className="absolute top-0 left-0 h-full bg-[#00b4ff]/20 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                       )}
 
                       <div className="relative z-10 flex items-center justify-between">
@@ -366,8 +338,9 @@ export default function DownloaderPage() {
                   {result.formats.filter(f => f.type === "audio").map((format, idx) => (
                     <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl overflow-hidden">
                       
-                      {(downloadingType === `audio-${idx}` || isProcessing) && (
-                        <div className="absolute top-0 left-0 h-full bg-purple-500/10 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                      {/* PROGRESS BAR FIX: Hanya muncul jika ID cocok */}
+                      {downloadingType === `audio-${idx}` && (
+                        <div className="absolute top-0 left-0 h-full bg-purple-500/20 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                       )}
 
                       <div className="relative z-10 flex items-center justify-between">
