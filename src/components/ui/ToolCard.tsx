@@ -12,11 +12,12 @@ export default function ToolCard({ tool, index }: { tool: Tool, index: number })
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
+      whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.95 }} 
       className="h-full relative group"
     >
-      {/* EFEK GLOW BORDER (Hanya muncul saat hover) */}
-      <div className="absolute -inset-[1px] bg-gradient-to-b from-cyan-400 to-purple-500 rounded-[25px] opacity-0 group-hover:opacity-40 transition duration-500 blur-sm pointer-events-none" />
+      {/* Efek Glow Border (Lebih Terang) */}
+      <div className="absolute -inset-[1.5px] bg-gradient-to-tr from-cyan-400 via-blue-500 to-purple-500 rounded-[26px] opacity-0 group-hover:opacity-60 transition duration-300 blur-sm pointer-events-none" />
       
       <Link
         href={tool.href}
@@ -25,7 +26,6 @@ export default function ToolCard({ tool, index }: { tool: Tool, index: number })
       >
         {/* Ikon Transparan */}
         <div className="relative mt-3 mb-4 group-hover:scale-110 transition-transform duration-300">
-          {/* Ikon memiliki drop-shadow agar tetap terlihat saat background terang */}
           <Icon size={32} className="text-[var(--text)] drop-shadow-md" />
         </div>
 
