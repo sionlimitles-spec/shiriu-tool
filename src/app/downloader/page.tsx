@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Trash2, Cpu, Zap } from "lucide-react";
+import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Trash2, Cpu } from "lucide-react";
 import { fetchDownloadData, DownloadResult } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
-import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 type HistoryItem = { url: string; title: string; thumbnail: string };
 
@@ -25,17 +23,27 @@ export default function DownloaderPage() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  const ffmpegRef = useRef(new FFmpeg());
+  // Gunakan any untuk menghindari error TypeScript saat inisialisasi awal
+  const ffmpegRef = useRef<any>(null);
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processMessage, setProcessMessage] = useState("");
 
   const bitrateOptions = ["64kbps", "128kbps", "192kbps", "256kbps", "320kbps"];
 
+  // FUNGSI LOAD FFMPEG SECARA DINAMIS (Hanya di Browser)
   const loadFFmpeg = async () => {
-    if (ffmpegLoaded) return;
+    if (ffmpegLoaded && ffmpegRef.current) return;
+    
+    setProcessMessage("Mengunduh mesin FFmpeg (10MB)...");
+    // Dynamic Import
+    const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+    const { toBlobURL } = await import('@ffmpeg/util');
+    
     const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
-    const ffmpeg = ffmpegRef.current;
+    const ffmpeg = new FFmpeg();
+    ffmpegRef.current = ffmpeg;
+    
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
@@ -105,7 +113,6 @@ export default function DownloaderPage() {
     }
   };
 
-  // FUNGSI DOWNLOAD DENGAN TRANSCODING (FFmpeg) - DIPERBAIKI
   const handleDownload = async (mediaUrl: string, filename: string, id: string, type: "video" | "audio") => {
     setDownloadingType(id);
     setDownloadProgress(0);
@@ -113,11 +120,12 @@ export default function DownloaderPage() {
 
     try {
       setIsProcessing(true);
-      setProcessMessage("Menyiapkan mesin FFmpeg...");
       await loadFFmpeg();
       const ffmpeg = ffmpegRef.current;
 
-      // 1. Ambil file asli
+      // Dynamic import fetchFile
+      const { fetchFile } = await import('@ffmpeg/util');
+
       setProcessMessage("Mengunduh file asli...");
       const proxyUrl = `/api/proxy?url=${encodeURIComponent(mediaUrl)}`;
       const response = await fetch(proxyUrl);
@@ -128,49 +136,41 @@ export default function DownloaderPage() {
       const inputName = `input_${id}.${inputExt}`;
       const outputName = `output_${id}.${inputExt}`;
 
-      // 2. Tulis ke memori
+      setProcessMessage("Menulis ke memori...");
       await ffmpeg.writeFile(inputName, await fetchFile(originalBlob));
 
-      // 3. Tentukan perintah
       let execArgs: string[] = [];
       
       if (type === "audio") {
         const bitrateNum = parseInt(audioBitrate);
         setProcessMessage(`Mengubah bitrate menjadi ${audioBitrate}...`);
-        // '-vn' memastikan hanya audio yang diproses
         execArgs = ['-i', inputName, '-vn', '-b:a', `${bitrateNum}k`, outputName];
       } else if (type === "video") {
         if (videoQuality === "hd") {
-          setProcessMessage("Meng-upscale video ke 1080p (Proses lambat, mohon tunggu)...");
+          setProcessMessage("Upscale 1080p (Proses lambat)...");
           execArgs = ['-i', inputName, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'copy', outputName];
         } else {
-          setProcessMessage("Memproses video (Copy stream)...");
-          // '-c copy' berarti tidak re-encode, hanya ganti kontainer (sangat cepat)
+          setProcessMessage("Memproses video...");
           execArgs = ['-i', inputName, '-c', 'copy', outputName];
         }
       }
 
-      // 4. Jalankan FFmpeg
-      ffmpeg.on('progress', ({ progress }) => {
+      ffmpeg.on('progress', ({ progress }: { progress: number }) => {
         const percent = Math.round(progress * 100);
         setDownloadProgress(percent > 100 ? 100 : percent);
       });
 
       await ffmpeg.exec(execArgs);
 
-      // 5. Baca hasil
       setProcessMessage("Menyelesaikan file...");
       const data = await ffmpeg.readFile(outputName);
       
-      // 6. Bersihkan memori (Sangat penting agar tidak crash)
+      // Bersihkan memori
       await ffmpeg.deleteFile(inputName);
       await ffmpeg.deleteFile(outputName);
 
-      // 7. Trigger Download
       const processedBlob = new Blob([data as any], { type: type === "video" ? "video/mp4" : "audio/mpeg" });
-      
-      // Cek jika ukuran file 0 (gagal)
-      if (processedBlob.size === 0) throw new Error("Hasil file kosong, transcoding gagal.");
+      if (processedBlob.size === 0) throw new Error("File hasil kosong.");
 
       const blobUrl = window.URL.createObjectURL(processedBlob);
       const a = document.createElement('a');
@@ -183,9 +183,8 @@ export default function DownloaderPage() {
 
     } catch (err: any) {
       console.error(err);
-      setError("Gagal memproses: " + err.message + ". Mencoba unduh file asli...");
-      // Fallback ke file asli jika FFmpeg gagal
-      window.open(mediaUrl, '_blank');
+      setError("Gagal memproses: " + err.message + ". Mengunduh file asli...");
+      window.open(mediaUrl, '_blank'); // Fallback
     } finally {
       setIsProcessing(false);
       setDownloadProgress(0);
