@@ -1,33 +1,14 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg-main: #05070d;
-  --color-brand: #00b4ff;
-  --color-brand-hover: #5b8cff;
-  --color-card-bg: #0f172a;
+body {
+  background-color: #05070d;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-@layer base {
-  body {
-    background-color: var(--color-bg-main);
-    color: #f3f4f6;
-    font-family: 'Inter', sans-serif;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  /* Custom Scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--color-brand); }
-}
-
-/* Animasi untuk Video */
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in-up {
-  animation: fade-in-up 0.8s ease-out forwards;
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #00b4ff; }
