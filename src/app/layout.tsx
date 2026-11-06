@@ -9,14 +9,15 @@ export const metadata: Metadata = {
   description: "Streaming, Downloader, AI dalam satu genggaman.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="id">
       <body className={`${inter.className} antialiased bg-[#050505]`}>
-        {/* Header dihapus total, konten langsung dimulai dari atas layar */}
-        <main className="min-h-screen">
-          {children}
-        </main>
+        <main className="min-h-screen pb-24">{children}</main>
       </body>
     </html>
   );
