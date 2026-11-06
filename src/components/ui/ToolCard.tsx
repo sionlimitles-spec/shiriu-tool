@@ -1,60 +1,55 @@
 "use client";
-
 import Link from "next/link";
 import { Tool } from "@/lib/data";
-import { ChevronRight, Play, Download, Brain, Book } from "lucide-react";
 import { motion } from "framer-motion";
+import { Play, Download, Brain, Book } from "lucide-react";
 
 export default function ToolCard({ tool }: { tool: Tool }) {
-  const getTheme = () => {
+  // Warna gradasi untuk ikon (tetap menggunakan aksen warna asli tiap tool)
+  const getGradient = () => {
     switch (tool.id) {
-      case "nonton": return { color: "text-red-400", bg: "bg-red-500/10", border: "hover:border-red-500/50", glow: "from-red-500/30" };
-      case "downloader": return { color: "text-[#00b4ff]", bg: "bg-[#00b4ff]/10", border: "hover:border-[#00b4ff]/50", glow: "from-[#00b4ff]/30" };
-      case "ai": return { color: "text-purple-400", bg: "bg-purple-500/10", border: "hover:border-purple-500/50", glow: "from-purple-500/30" };
-      case "komik": return { color: "text-green-400", bg: "bg-green-500/10", border: "hover:border-green-500/50", glow: "from-green-500/30" };
-      default: return { color: "text-gray-400", bg: "bg-gray-500/10", border: "hover:border-gray-500/50", glow: "from-gray-500/30" };
+      case "nonton": return "from-red-500 to-orange-500";
+      case "downloader": return "from-[#00b4ff] to-blue-600";
+      case "ai": return "from-purple-500 to-indigo-500";
+      case "komik": return "from-green-500 to-emerald-600";
+      default: return "from-gray-500 to-gray-700";
     }
   };
 
-  const theme = getTheme();
-
   const Icon = () => {
     switch (tool.id) {
-      case "nonton": return <Play size={26} />;
-      case "downloader": return <Download size={26} />;
-      case "ai": return <Brain size={26} />;
-      case "komik": return <Book size={26} />;
-      default: return <Play size={26} />;
+      case "nonton": return <Play size={28} className="text-white" />;
+      case "downloader": return <Download size={28} className="text-white" />;
+      case "ai": return <Brain size={28} className="text-white" />;
+      case "komik": return <Book size={28} className="text-white" />;
+      default: return <Play size={28} className="text-white" />;
     }
   };
 
   return (
-    <motion.div whileHover={{ y: -6 }} className="h-full">
+    <motion.div whileTap={{ scale: 0.95 }} className="h-full">
       <Link 
         href={tool.href} 
-        className={`group relative flex flex-col h-full min-h-[200px] p-5 rounded-2xl bg-[#0f172a] border border-white/5 transition-all duration-300 ${theme.border} hover:shadow-[0_10px_40px_rgba(0,0,0,0.4)] overflow-hidden`}
+        className="group flex flex-col items-center justify-center gap-3 p-3 h-full rounded-2xl bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/5 hover:border-white/20 transition-all duration-300 shadow-lg"
       >
-        <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl ${theme.glow} to-transparent blur-2xl opacity-50 group-hover:opacity-100 transition-opacity`} />
-
-        <div className="relative z-10 flex justify-between items-start mb-4">
-          <div className={`p-3 rounded-xl ${theme.bg} ${theme.color} group-hover:scale-110 transition-transform`}>
+        {/* Ikon dengan Efek Gradasi & Glow */}
+        <div className="relative">
+          <div className={`absolute inset-0 bg-gradient-to-br ${getGradient()} blur-lg opacity-40 group-hover:opacity-70 transition-opacity`} />
+          <div className={`relative w-14 h-14 flex items-center justify-center rounded-[18px] bg-gradient-to-br ${getGradient()} shadow-inner`}>
             <Icon />
           </div>
+        </div>
+
+        {/* Judul & Status (Dibuat ringkas) */}
+        <div className="text-center mt-1">
+          <h3 className="text-[13px] font-semibold text-gray-200 leading-tight line-clamp-2">
+            {tool.title}
+          </h3>
           {tool.badge && (
-            <span className={`px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase rounded-full border border-white/10 bg-white/5 backdrop-blur-sm ${theme.color}`}>
+            <span className="inline-block mt-1 text-[9px] font-bold tracking-widest text-gray-400 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
               {tool.badge}
             </span>
           )}
-        </div>
-
-        <div className="relative z-10 flex-1">
-          <h3 className="text-lg font-bold text-white mb-1.5">{tool.title}</h3>
-          <p className="text-[13px] text-gray-400 leading-relaxed line-clamp-2">{tool.description}</p>
-        </div>
-
-        <div className="relative z-10 mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
-          <span className={`text-xs font-bold ${theme.color}`}>Buka Tool</span>
-          <ChevronRight size={16} className={`${theme.color} group-hover:translate-x-1 transition-transform`} />
         </div>
       </Link>
     </motion.div>
