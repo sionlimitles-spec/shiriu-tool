@@ -10,22 +10,19 @@ export default function DownloaderPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<DownloadResult | null>(null);
-  const [downloadLoading, setDownloadLoading] = useState<string | null>(null); // Untuk loading tombol unduh
+  const [downloadLoading, setDownloadLoading] = useState<string | null>(null);
 
-  // State Fitur Baru
   const [videoQuality, setVideoQuality] = useState<"original" | "hd">("original");
   const [audioBitrate, setAudioBitrate] = useState("320kbps");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const bitrateOptions = ["64kbps", "128kbps", "192kbps", "256kbps", "320kbps"];
 
-  // Fungsi Membersihkan Nama File
   const getCleanFilename = (title: string, ext: string) => {
-    const cleanTitle = title.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+    const cleanTitle = title.replace(/[^a-zA-Z0-9\s]/g, "").trim().substring(0, 50); // Batasi panjang nama
     return `${cleanTitle} - by Shiriu.${ext}`;
   };
 
-  // Fungsi Menghitung Estimasi Ukuran File Audio (Berdasarkan durasi)
   const getEstimatedAudioSize = (bitrateStr: string) => {
     const bitrate = parseInt(bitrateStr);
     const duration = result?.duration ? parseInt(result.duration.split(':')[0]) * 60 + parseInt(result.duration.split(':')[1]) : 180;
@@ -63,35 +60,51 @@ export default function DownloaderPage() {
     }
   };
 
-  // FUNGSI DOWNLOAD BARU: Fetch via Proxy -> Blob -> Download
+  // SISTEM DOWNLOAD BERLAPIS (FALLBACK)
   const handleDownload = async (mediaUrl: string, filename: string, id: string) => {
     setDownloadLoading(id);
+    
     try {
-      // Panggil proxy kita untuk mengambil file
-      const proxyUrl = `/api/proxy?url=${encodeURIComponent(mediaUrl)}`;
-      const response = await fetch(proxyUrl);
-      
-      if (!response.ok) throw new Error("Gagal mengunduh file dari server sumber.");
-      
-      // Ubah response menjadi Blob
+      let response;
+
+      // LAPIS 1: Coba Proxy Cloudflare Kita
+      try {
+        response = await fetch(`/api/proxy?url=${encodeURIComponent(mediaUrl)}`);
+        if (!response.ok) throw new Error("Local proxy failed");
+      } catch (e) {
+        console.log("Local proxy failed, trying public CORS proxy...");
+        
+        // LAPIS 2: Coba Proxy Publik (corsproxy.io)
+        try {
+          response = await fetch(`https://corsproxy.io/?${encodeURIComponent(mediaUrl)}`);
+          if (!response.ok) throw new Error("Public proxy failed");
+        } catch (e2) {
+          console.log("Public proxy failed, falling back to direct link...");
+          
+          // LAPIS 3: Buka langsung di tab baru (Bypass semua error)
+          window.open(mediaUrl, '_blank');
+          setDownloadLoading(null);
+          return; 
+        }
+      }
+
+      // Jika salah satu proxy berhasil, proses menjadi file
       const blob = await response.blob();
       
-      // Buat URL objek dari Blob
+      if (blob.size === 0) throw new Error("File kosong");
+
       const blobUrl = window.URL.createObjectURL(blob);
-      
-      // Buat elemen <a> sementara untuk memicu unduhan
       const a = document.createElement('a');
       a.href = blobUrl;
-      a.download = filename; // Set nama file kustom
+      a.download = filename; 
       document.body.appendChild(a);
       a.click();
       a.remove();
-      
-      // Bersihkan URL objek
       window.URL.revokeObjectURL(blobUrl);
       
     } catch (err) {
-      alert("Gagal mengunduh: " + (err as Error).message);
+      // Jika semua gagal, tetap buka link aslinya
+      window.open(mediaUrl, '_blank');
     } finally {
       setDownloadLoading(null);
     }
@@ -99,7 +112,6 @@ export default function DownloaderPage() {
 
   return (
     <div className="min-h-screen pb-28 px-4 pt-12 max-w-lg mx-auto relative z-10">
-      {/* Title */}
       <div className="text-center mb-8">
         <h1 className="text-3xl md:text-4xl font-black text-[var(--text)] mb-2 tracking-tight">
           Media <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00b4ff] to-blue-500">Downloader</span>
@@ -109,7 +121,6 @@ export default function DownloaderPage() {
         </p>
       </div>
 
-      {/* Form Input */}
       <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-8">
         <div className="relative flex items-center bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--card-border)] rounded-2xl h-16 px-2 focus-within:border-[#00b4ff] transition-all shadow-lg">
           <div className="pl-3 pr-2 text-[var(--text-muted)]">
@@ -128,26 +139,17 @@ export default function DownloaderPage() {
               <X className="w-5 h-5" />
             </button>
           )}
-          <button 
-            type="button" 
-            onClick={handlePaste} 
-            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--text-muted)]/10 hover:bg-[var(--text-muted)]/20 rounded-xl text-sm font-semibold text-[var(--text)] transition-colors ml-1 shrink-0"
-          >
+          <button type="button" onClick={handlePaste} className="flex items-center gap-1.5 px-4 py-2 bg-[var(--text-muted)]/10 hover:bg-[var(--text-muted)]/20 rounded-xl text-sm font-semibold text-[var(--text)] transition-colors ml-1 shrink-0">
             <ClipboardPaste size={16} /> Paste
           </button>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full h-14 bg-gradient-to-r from-[#00b4ff] to-blue-600 text-white font-bold text-lg rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] shadow-[0_10px_30px_rgba(0,180,255,0.3)]"
-        >
+        <button type="submit" disabled={loading} className="w-full h-14 bg-gradient-to-r from-[#00b4ff] to-blue-600 text-white font-bold text-lg rounded-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] shadow-[0_10px_30px_rgba(0,180,255,0.3)]">
           {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Download className="w-6 h-6" />}
           {loading ? "Memproses..." : "Ambil Media"}
         </button>
       </form>
 
-      {/* Error State */}
       <AnimatePresence>
         {error && (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-2xl flex items-start gap-3 mb-8 text-sm">
@@ -157,12 +159,9 @@ export default function DownloaderPage() {
         )}
       </AnimatePresence>
 
-      {/* HASIL DOWNLOAD */}
       <AnimatePresence>
         {result && !loading && (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-[var(--card-bg)] border border-[var(--card-border)] backdrop-blur-xl rounded-[32px] overflow-hidden mt-4 shadow-2xl">
-            
-            {/* Thumbnail */}
             <div className="relative group">
               <img src={result.thumbnail} alt="Thumbnail" className="w-full aspect-video object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/60 to-transparent opacity-90" />
@@ -176,7 +175,6 @@ export default function DownloaderPage() {
             </div>
             
             <div className="p-5 flex flex-col gap-6">
-              {/* OPSI VIDEO */}
               {result.formats.some(f => f.type === "video") && (
                 <div>
                   <h4 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-2">
@@ -208,7 +206,6 @@ export default function DownloaderPage() {
                 </div>
               )}
 
-              {/* OPSI AUDIO */}
               {result.formats.some(f => f.type === "audio") && (
                 <div>
                   <h4 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-2">
