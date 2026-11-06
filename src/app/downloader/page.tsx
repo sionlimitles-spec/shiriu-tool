@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Pause, Trash2, Cpu } from "lucide-react";
+import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Trash2, Cpu } from "lucide-react";
 import { fetchDownloadData, DownloadResult } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { FFmpeg } from '@ffmpeg/ffmpeg';
@@ -126,13 +126,6 @@ export default function DownloaderPage() {
       const blob = await response.blob();
       const fileExt = type === "video" ? "mp4" : "mp3";
 
-      // Jika user memilih original DAN tidak ada upscale/bitrate khusus, langsung download
-      if ((type === "video" && videoQuality === "original") || (type === "audio" && audioBitrate === "320kbps")) {
-        // Anggap original untuk audio 320kbps, atau kita bisa paksa proses jika ingin benar-benar 320.
-        // Untuk demo, kita proses jika bukan default.
-        // Biarkan lewat ke proses FFmpeg jika bukan default.
-      }
-
       // 2. Load FFmpeg
       setIsProcessing(true);
       setProcessMessage("Menyiapkan mesin FFmpeg...");
@@ -154,21 +147,18 @@ export default function DownloaderPage() {
         execArgs = ['-i', `input.${fileExt}`, '-b:a', `${bitrateNum}k`, `output.${outputExt}`];
       } else if (type === "video" && videoQuality === "hd") {
         outputExt = "mp4";
-        setProcessMessage("Meng-upscale video ke 1080p (Proses ini memakan waktu)...");
-        // Upscale ke 1080p dengan filter lanczos
+        setProcessMessage("Meng-upscale video ke 1080p...");
         execArgs = ['-i', `input.${fileExt}`, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'copy', `output.${outputExt}`];
       } else {
-        // Original video
         outputExt = "mp4";
         setProcessMessage("Memproses video original...");
         execArgs = ['-i', `input.${fileExt}`, '-c', 'copy', `output.${outputExt}`];
       }
 
       // 5. Jalankan FFmpeg
-      ffmpeg.on('progress', ({ progress, time }) => {
-        // Progress FFmpeg (0-1)
+      ffmpeg.on('progress', ({ progress }) => {
         const percent = Math.round(progress * 100);
-        setDownloadProgress(percent);
+        setDownloadProgress(percent > 100 ? 100 : percent);
       });
 
       await ffmpeg.exec(execArgs);
@@ -176,7 +166,10 @@ export default function DownloaderPage() {
       // 6. Baca hasil
       setProcessMessage("Menyelesaikan file...");
       const data = await ffmpeg.readFile(`output.${outputExt}`);
-      const processedBlob = new Blob([data], { type: type === "video" ? "video/mp4" : "audio/mpeg" });
+      
+      // PERBAIKAN ERROR TYPESCRIPT DI SINI
+      // Cast data ke any agar TypeScript tidak protes soal SharedArrayBuffer
+      const processedBlob = new Blob([data as any], { type: type === "video" ? "video/mp4" : "audio/mpeg" });
       
       // 7. Trigger Download
       const blobUrl = window.URL.createObjectURL(processedBlob);
@@ -296,12 +289,11 @@ export default function DownloaderPage() {
                   </h4>
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <button onClick={() => setVideoQuality("original")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "original" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>Original <br/><span className="text-[10px] font-normal opacity-70">Tanpa Kompres</span></button>
-                    <button onClick={() => setVideoQuality("hd")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "hd" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">Upscale 1080p + Tajam</span></button>
+                    <button onClick={() => setVideoQuality("hd")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "hd" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">Upscale 1080p</span></button>
                   </div>
                   {result.formats.filter(f => f.type === "video").map((format, idx) => (
                     <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl mb-2 overflow-hidden">
                       
-                      {/* PROGRESS BAR FFMPEG */}
                       {(downloadingType === `video-${idx}` || isProcessing) && (
                         <div className="absolute top-0 left-0 h-full bg-[#00b4ff]/10 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                       )}
