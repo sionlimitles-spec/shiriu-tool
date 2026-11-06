@@ -41,15 +41,12 @@ export default function Home() {
       
       {/* ================= 1. CINEMATIC HERO VIDEO ================= */}
       <div className="relative w-full h-[300px] overflow-hidden">
-        {/* Video */}
         <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0">
           <source src="https://files.catbox.moe/hfbu7d.mp4" type="video/mp4" />
         </video>
         
-        {/* Overlay Gradient (Membuat video menyatu ke background bawah) */}
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/40 to-black/30" />
         
-        {/* Tombol Toggle Tema */}
         <button 
           onClick={toggleTheme}
           className="absolute top-6 right-6 z-20 p-3 rounded-full bg-white/20 dark:bg-black/40 backdrop-blur-md border border-white/30 text-white shadow-lg transition-transform active:scale-90"
@@ -58,7 +55,7 @@ export default function Home() {
         </button>
       </div>
 
-      {/* ================= 2. KONTEN (Menimpa Video) ================= */}
+      {/* ================= 2. KONTEN ================= */}
       <div className="px-4 -mt-20 relative z-30 max-w-lg mx-auto">
         
         {/* Kartu Profil Glassmorphism */}
@@ -133,7 +130,7 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Grid Tools */}
+        {/* Grid Tools (PERHATIKAN: index={idx} sudah ditambahkan) */}
         <motion.div layout className="grid grid-cols-3 gap-3 md:gap-4 mb-10">
           {filteredTools.map((tool, idx) => (
             <ToolCard key={tool.id} tool={tool} index={idx} />
