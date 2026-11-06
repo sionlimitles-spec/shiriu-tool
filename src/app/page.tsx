@@ -21,9 +21,11 @@ export default function Home() {
   const toggleTheme = () => {
     if (isDark) {
       document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
       localStorage.theme = 'light';
       setIsDark(false);
     } else {
+      document.documentElement.classList.remove('light');
       document.documentElement.classList.add('dark');
       localStorage.theme = 'dark';
       setIsDark(true);
@@ -39,23 +41,26 @@ export default function Home() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       
-      {/* Animasi Background Aurora */}
-      <div className="animated-bg"></div>
+      {/* ================= BACKGROUND BLOB ANIMASI ================= */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="bg-blob blob-1"></div>
+        <div className="bg-blob blob-2"></div>
+        <div className="bg-blob blob-3"></div>
+      </div>
 
       <div className="relative z-10 pb-28">
         
-        {/* ================= 1. CINEMATIC HERO VIDEO ================= */}
+        {/* ================= 1. HERO VIDEO ================= */}
         <div className="relative w-full h-[280px] overflow-hidden">
           <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80">
             <source src="https://files.catbox.moe/hfbu7d.mp4" type="video/mp4" />
           </video>
           
-          {/* Overlay Gelap agar Menyatu */}
-          <div className="absolute inset-0 z-10 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/60 to-black/30" />
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/60 to-transparent" />
           
           <button 
             onClick={toggleTheme}
-            className="absolute top-6 right-6 z-20 p-3 rounded-full bg-white/20 dark:bg-black/40 backdrop-blur-md border border-white/30 text-white shadow-lg transition-transform active:scale-90"
+            className="absolute top-6 right-6 z-20 p-3 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white shadow-lg transition-transform active:scale-90"
           >
             {isDark ? <Sun size={20} /> : <Moon size={20} />}
           </button>
@@ -70,28 +75,24 @@ export default function Home() {
             className="rounded-[32px] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-2xl p-6 shadow-2xl mb-8"
           >
             <div className="flex flex-col gap-4">
-              {/* Perbaikan: Alignment Icon dan Text */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-[var(--text-muted)]">
                   <User size={18} /> <span className="text-sm font-medium">Username</span>
                 </div>
                 <span className="font-bold text-[var(--text)] text-sm">Tamu</span>
               </div>
-              
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-[var(--text-muted)]">
                   <Smartphone size={18} /> <span className="text-sm font-medium">Perangkat</span>
                 </div>
                 <span className="font-bold text-[var(--text)] text-sm">Android</span>
               </div>
-              
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-[var(--text-muted)]">
                   <Battery size={18} /> <span className="text-sm font-medium">Baterai</span>
                 </div>
                 <span className="font-bold text-[var(--text)] text-sm">85%</span>
               </div>
-              
               <div className="flex items-center justify-between border-t border-[var(--card-border)] pt-4 mt-1">
                 <div className="flex items-center gap-3 text-[var(--text-muted)]">
                   <Crown size={18} /> <span className="text-sm font-medium">Role</span>
@@ -115,7 +116,7 @@ export default function Home() {
                 placeholder="Cari tool impianmu..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl py-4 pl-12 pr-4 text-sm text-[var(--text)] outline-none focus:border-gray-500 backdrop-blur-xl transition-colors placeholder:text-[var(--text-muted)]"
+                className="w-full bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl py-4 pl-12 pr-4 text-sm text-[var(--text)] outline-none focus:border-gray-400 backdrop-blur-xl transition-colors placeholder:text-[var(--text-muted)]"
               />
             </div>
 
@@ -127,7 +128,7 @@ export default function Home() {
                   onClick={() => setActiveCat(cat)}
                   className={`px-5 py-2.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 ${
                     activeCat === cat
-                      ? "bg-[var(--text)] text-[var(--bg)] shadow-md scale-105"
+                      ? "bg-[var(--text)] text-[var(--bg)] shadow-lg scale-105"
                       : "bg-[var(--card-bg)] text-[var(--text-muted)] border border-[var(--card-border)] hover:text-[var(--text)]"
                   }`}
                 >
