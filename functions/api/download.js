@@ -1,60 +1,60 @@
-// functions/api/download.js
-
 export async function onRequest(context) {
   const { request } = context;
-  const urlParams = new URL(request.url);
-  const targetUrl = urlParams.searchParams.get("url");
+  const targetUrl = new URL(request.url).searchParams.get("url");
 
   if (!targetUrl) {
-    return new Response(JSON.stringify({ error: "URL is required" }), {
+    return new Response(JSON.stringify({ error: "URL wajib diisi" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    });
+  }
+
+  const isYouTube = targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be");
+  const isTikTok = targetUrl.includes("tiktok.com");
+  const isInstagram = targetUrl.includes("instagram.com");
+
+  let apiUrl = "";
+
+  if (isYouTube) {
+    // Coba API YouTube yang lebih stabil
+    apiUrl = `https://api.nyxs.pw/dl/ytmp4?url=${encodeURIComponent(targetUrl)}`;
+  } else if (isTikTok) {
+    apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`;
+  } else if (isInstagram) {
+    apiUrl = `https://api.siputzx.my.id/api/d/igdl?url=${encodeURIComponent(targetUrl)}`;
+  } else {
+    return new Response(JSON.stringify({ error: "Platform belum didukung" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
 
   try {
-    // 1. Deteksi platform dari URL yang diminta pengguna
-    let apiUrl = "";
-    if (targetUrl.includes("youtube.com") || targetUrl.includes("youtu.be")) {
-      // Gunakan API YouTube yang stabil (Siputzx / Nyxs)
-      apiUrl = `https://api.siputzx.my.id/api/d/ytmp4?url=${encodeURIComponent(targetUrl)}`;
-    } else if (targetUrl.includes("tiktok.com")) {
-      // Gunakan TikWM untuk TikTok (sangat stabil)
-      apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(targetUrl)}`;
-    } else if (targetUrl.includes("instagram.com")) {
-      apiUrl = `https://api.siputzx.my.id/api/d/igdl?url=${encodeURIComponent(targetUrl)}`;
-    } else {
-      return new Response(JSON.stringify({ error: "Platform belum didukung" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+    const apiResponse = await fetch(apiUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(10000), // Batas waktu 10 detik
+    });
+
+    const text = await apiResponse.text(); // Baca teks mentah dulu untuk menghindari error parsing
+
+    if (!apiResponse.ok) {
+      throw new Error(`Upstream error (${apiResponse.status}): ${text.slice(0, 100)}`);
     }
 
-    // 2. Panggil API eksternal dari server Cloudflare
-    const apiResponse = await fetch(apiUrl);
-    const data = await apiResponse.json();
+    const data = JSON.parse(text); // Parse setelah dipastikan tidak error
 
-    // 3. Kembalikan data ke frontend dengan header CORS yang terbuka
     return new Response(JSON.stringify(data), {
       status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*", // Izinkan akses dari domain mana pun
-        "Access-Control-Allow-Methods": "GET, OPTIONS",
-      },
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+    return new Response(JSON.stringify({ error: error.message || "Gagal menghubungi server sumber" }), {
+      status: 502, // Bad Gateway
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
 }
 
-// Menangani preflight request (OPTIONS) agar browser mengizinkan pemanggilan
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
