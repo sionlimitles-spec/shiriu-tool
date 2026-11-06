@@ -1,9 +1,10 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { toolsData } from "@/lib/data";
 import ToolCard from "@/components/ui/ToolCard";
 import BottomNav from "@/components/BottomNav";
-import { Search, LayoutGrid, Moon, Sun, User, Smartphone, Battery, Crown } from "lucide-react";
+import { Search, LayoutGrid, Moon, Sun, User, Smartphone, Battery, Crown, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 const categories = ["Semua", "Media", "Hiburan", "AI"];
@@ -12,27 +13,21 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Semua");
   const [isDark, setIsDark] = useState(true);
-  
-  // State untuk baterai asli HP
   const [batteryLevel, setBatteryLevel] = useState<number | string>("...");
 
   useEffect(() => {
-    // Cek Mode Gelap/Terang
     if (document.documentElement.classList.contains('dark')) setIsDark(true);
     else setIsDark(false);
 
-    // Ambil data Baterai HP (Battery Status API)
     if (typeof navigator !== "undefined" && "getBattery" in navigator) {
       (navigator as any).getBattery().then((battery: any) => {
         setBatteryLevel(Math.round(battery.level * 100));
-        
-        // Update jika baterai berubah
         battery.addEventListener("levelchange", () => {
           setBatteryLevel(Math.round(battery.level * 100));
         });
       });
     } else {
-      setBatteryLevel("N/A"); // Jika browser tidak mendukung
+      setBatteryLevel("N/A");
     }
   }, []);
 
@@ -65,7 +60,6 @@ export default function Home() {
           <source src="https://files.catbox.moe/hfbu7d.mp4" type="video/mp4" />
         </video>
         
-        {/* Overlay Gradient */}
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/70 to-transparent" />
         
         <button 
@@ -84,7 +78,6 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
           className="rounded-[28px] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-2xl p-5 shadow-2xl mb-8 relative overflow-hidden"
         >
-          {/* Efek Cahaya Tipis di Belakang Profil */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-2xl rounded-full"></div>
 
           <div className="flex flex-col gap-4 relative z-10">
@@ -104,7 +97,6 @@ export default function Home() {
               <div className="flex items-center gap-3 text-[var(--text-muted)]">
                 <Battery size={18} /> <span className="text-sm font-medium">Baterai</span>
               </div>
-              {/* TAMPILAN BATERAI ASLI */}
               <span className="font-bold text-[var(--text)] text-sm">{batteryLevel}%</span>
             </div>
             <div className="flex items-center justify-between border-t border-[var(--card-border)] pt-4 mt-1">
@@ -134,7 +126,6 @@ export default function Home() {
             />
           </div>
 
-          {/* Filter Kategori */}
           <div className="flex gap-2 overflow-x-auto pb-6 scrollbar-hide">
             {categories.map((cat) => (
               <button
