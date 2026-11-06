@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Pause, Trash2 } from "lucide-react";
+import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Pause, Trash2, Cpu } from "lucide-react";
 import { fetchDownloadData, DownloadResult } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 type HistoryItem = { url: string; title: string; thumbnail: string };
 
@@ -27,9 +29,26 @@ export default function DownloaderPage() {
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
+  // State FFmpeg
+  const ffmpegRef = useRef(new FFmpeg());
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processMessage, setProcessMessage] = useState("");
+
   const bitrateOptions = ["64kbps", "128kbps", "192kbps", "256kbps", "320kbps"];
 
-  // Muat History saat halaman dibuka
+  // Load FFmpeg dari CDN
+  const loadFFmpeg = async () => {
+    if (ffmpegLoaded) return;
+    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+    const ffmpeg = ffmpegRef.current;
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+    setFfmpegLoaded(true);
+  };
+
   useEffect(() => {
     const saved = localStorage.getItem("shiriu_history");
     if (saved) {
@@ -54,10 +73,8 @@ export default function DownloaderPage() {
     return `${cleanTitle} - by Shiriu.${ext}`;
   };
 
-  // Estimasi ukuran file (Rumus: Bitrate * Durasi / 8)
   const getEstimatedAudioSize = (bitrateStr: string) => {
     const bitrate = parseInt(bitrateStr);
-    // Default durasi 60 detik jika API tidak memberikan durasi
     const duration = result?.duration ? parseInt(result.duration.split(':')[0]) * 60 + parseInt(result.duration.split(':')[1]) : 60;
     const sizeInBytes = (bitrate * 1000 * duration) / 8;
     return (sizeInBytes / (1024 * 1024)).toFixed(1) + " MB";
@@ -86,7 +103,7 @@ export default function DownloaderPage() {
     try {
       const data = await fetchDownloadData(url);
       setResult(data);
-      saveToHistory(data, url); // Simpan ke History
+      saveToHistory(data, url);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -94,49 +111,92 @@ export default function DownloaderPage() {
     }
   };
 
-  // FUNGSI DOWNLOAD DENGAN PROGRESS BAR VISUAL
-  const handleDownload = async (mediaUrl: string, filename: string, id: string) => {
+  // FUNGSI DOWNLOAD DENGAN TRANSCODING (FFmpeg)
+  const handleDownload = async (mediaUrl: string, filename: string, id: string, type: "video" | "audio") => {
     setDownloadingType(id);
     setDownloadProgress(0);
-    
-    const proxyUrl = `/api/proxy?url=${encodeURIComponent(mediaUrl)}`;
-    
-    const xhr = new XMLHttpRequest();
-    xhr.open("GET", proxyUrl, true);
-    xhr.responseType = "blob";
+    setIsProcessing(false);
 
-    xhr.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        setDownloadProgress(percent);
+    try {
+      // 1. Ambil file asli melalui proxy
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(mediaUrl)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("Gagal mengambil file asli.");
+      
+      const blob = await response.blob();
+      const fileExt = type === "video" ? "mp4" : "mp3";
+
+      // Jika user memilih original DAN tidak ada upscale/bitrate khusus, langsung download
+      if ((type === "video" && videoQuality === "original") || (type === "audio" && audioBitrate === "320kbps")) {
+        // Anggap original untuk audio 320kbps, atau kita bisa paksa proses jika ingin benar-benar 320.
+        // Untuk demo, kita proses jika bukan default.
+        // Biarkan lewat ke proses FFmpeg jika bukan default.
       }
-    };
 
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        const blob = xhr.response;
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(blobUrl);
+      // 2. Load FFmpeg
+      setIsProcessing(true);
+      setProcessMessage("Menyiapkan mesin FFmpeg...");
+      await loadFFmpeg();
+      const ffmpeg = ffmpegRef.current;
+
+      // 3. Tulis file ke memori FFmpeg
+      setProcessMessage("Menulis file ke memori...");
+      await ffmpeg.writeFile(`input.${fileExt}`, await fetchFile(blob));
+
+      // 4. Tentukan perintah FFmpeg
+      let execArgs: string[] = [];
+      let outputExt = fileExt;
+
+      if (type === "audio") {
+        outputExt = "mp3";
+        const bitrateNum = parseInt(audioBitrate);
+        setProcessMessage(`Mengubah bitrate audio menjadi ${audioBitrate}...`);
+        execArgs = ['-i', `input.${fileExt}`, '-b:a', `${bitrateNum}k`, `output.${outputExt}`];
+      } else if (type === "video" && videoQuality === "hd") {
+        outputExt = "mp4";
+        setProcessMessage("Meng-upscale video ke 1080p (Proses ini memakan waktu)...");
+        // Upscale ke 1080p dengan filter lanczos
+        execArgs = ['-i', `input.${fileExt}`, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'copy', `output.${outputExt}`];
       } else {
-        window.open(mediaUrl, '_blank'); // Fallback
+        // Original video
+        outputExt = "mp4";
+        setProcessMessage("Memproses video original...");
+        execArgs = ['-i', `input.${fileExt}`, '-c', 'copy', `output.${outputExt}`];
       }
+
+      // 5. Jalankan FFmpeg
+      ffmpeg.on('progress', ({ progress, time }) => {
+        // Progress FFmpeg (0-1)
+        const percent = Math.round(progress * 100);
+        setDownloadProgress(percent);
+      });
+
+      await ffmpeg.exec(execArgs);
+
+      // 6. Baca hasil
+      setProcessMessage("Menyelesaikan file...");
+      const data = await ffmpeg.readFile(`output.${outputExt}`);
+      const processedBlob = new Blob([data], { type: type === "video" ? "video/mp4" : "audio/mpeg" });
+      
+      // 7. Trigger Download
+      const blobUrl = window.URL.createObjectURL(processedBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename.replace(`.${fileExt}`, `.${outputExt}`);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+
+    } catch (err: any) {
+      console.error(err);
+      setError("Gagal memproses file: " + err.message);
+    } finally {
+      setIsProcessing(false);
       setDownloadProgress(0);
       setDownloadingType(null);
-    };
-
-    xhr.onerror = () => {
-      window.open(mediaUrl, '_blank'); // Fallback
-      setDownloadProgress(0);
-      setDownloadingType(null);
-    };
-
-    xhr.send();
+      setProcessMessage("");
+    }
   };
 
   return (
@@ -171,7 +231,7 @@ export default function DownloaderPage() {
         </button>
       </form>
 
-      {/* RIWAYAT UNDUHAN (HISTORY) */}
+      {/* RIWAYAT UNDUHAN */}
       {history.length > 0 && !loading && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -208,7 +268,6 @@ export default function DownloaderPage() {
               <img src={result.thumbnail} alt="Thumbnail" className="w-full aspect-video object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/60 to-transparent opacity-90" />
               
-              {/* Tombol Thumbnail & Copy */}
               <div className="absolute top-4 right-4 flex gap-2">
                 <a href={result.thumbnail} target="_blank" rel="noopener noreferrer" className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition-colors" title="Unduh Thumbnail">
                   <ImageIcon size={16} />
@@ -237,27 +296,31 @@ export default function DownloaderPage() {
                   </h4>
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <button onClick={() => setVideoQuality("original")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "original" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>Original <br/><span className="text-[10px] font-normal opacity-70">Tanpa Kompres</span></button>
-                    <button onClick={() => setVideoQuality("hd")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "hd" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">Upscale + Tajam</span></button>
+                    <button onClick={() => setVideoQuality("hd")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "hd" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">Upscale 1080p + Tajam</span></button>
                   </div>
                   {result.formats.filter(f => f.type === "video").map((format, idx) => (
                     <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl mb-2 overflow-hidden">
                       
-                      {/* PROGRESS BAR VISUAL */}
-                      {downloadingType === `video-${idx}` && (
+                      {/* PROGRESS BAR FFMPEG */}
+                      {(downloadingType === `video-${idx}` || isProcessing) && (
                         <div className="absolute top-0 left-0 h-full bg-[#00b4ff]/10 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                       )}
 
                       <div className="relative z-10 flex items-center justify-between">
                         <div className="flex flex-col">
                           <span className="text-[13px] font-bold text-[var(--text)]">{format.label} {videoQuality === "hd" ? "(Upscaled)" : ""}</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">{downloadingType === `video-${idx}` ? `Mengunduh... ${downloadProgress}%` : 'Klik ikon untuk unduh'}</span>
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            {downloadingType === `video-${idx}` 
+                              ? (isProcessing ? `${processMessage} ${downloadProgress}%` : `Mengunduh... ${downloadProgress}%`) 
+                              : 'Klik ikon untuk unduh'}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => setPreviewMedia({ url: format.url, type: "video" })} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" title="Preview">
                             <Play size={16} />
                           </button>
-                          <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp4'), `video-${idx}`)} disabled={downloadingType === `video-${idx}`} className="p-2.5 bg-[#00b4ff] rounded-xl text-white hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50">
-                            {downloadingType === `video-${idx}` ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                          <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp4'), `video-${idx}`, 'video')} disabled={downloadingType === `video-${idx}`} className="p-2.5 bg-[#00b4ff] rounded-xl text-white hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50 min-w-[36px] flex justify-center">
+                            {downloadingType === `video-${idx}` ? (isProcessing ? <Cpu size={16} className="animate-pulse" /> : <Loader2 size={16} className="animate-spin" />) : <Download size={16} />}
                           </button>
                         </div>
                       </div>
@@ -295,22 +358,25 @@ export default function DownloaderPage() {
                   {result.formats.filter(f => f.type === "audio").map((format, idx) => (
                     <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl overflow-hidden">
                       
-                      {/* PROGRESS BAR VISUAL */}
-                      {downloadingType === `audio-${idx}` && (
+                      {(downloadingType === `audio-${idx}` || isProcessing) && (
                         <div className="absolute top-0 left-0 h-full bg-purple-500/10 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
                       )}
 
                       <div className="relative z-10 flex items-center justify-between">
                         <div className="flex flex-col">
                           <span className="text-[13px] font-bold text-[var(--text)]">Audio MP3 ({audioBitrate})</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">{downloadingType === `audio-${idx}` ? `Mengunduh... ${downloadProgress}%` : `Estimasi: ${getEstimatedAudioSize(audioBitrate)}`}</span>
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            {downloadingType === `audio-${idx}` 
+                              ? (isProcessing ? `${processMessage} ${downloadProgress}%` : `Mengunduh... ${downloadProgress}%`) 
+                              : `Estimasi: ${getEstimatedAudioSize(audioBitrate)}`}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => setPreviewMedia({ url: format.url, type: "audio" })} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" title="Preview">
                             <Play size={16} />
                           </button>
-                          <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp3'), `audio-${idx}`)} disabled={downloadingType === `audio-${idx}`} className="p-2.5 bg-purple-500 rounded-xl text-white hover:bg-purple-600 transition-colors shadow-md disabled:opacity-50">
-                            {downloadingType === `audio-${idx}` ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                          <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp3'), `audio-${idx}`, 'audio')} disabled={downloadingType === `audio-${idx}`} className="p-2.5 bg-purple-500 rounded-xl text-white hover:bg-purple-600 transition-colors shadow-md disabled:opacity-50 min-w-[36px] flex justify-center">
+                            {downloadingType === `audio-${idx}` ? (isProcessing ? <Cpu size={16} className="animate-pulse" /> : <Loader2 size={16} className="animate-spin" />) : <Download size={16} />}
                           </button>
                         </div>
                       </div>
@@ -356,7 +422,7 @@ export default function DownloaderPage() {
       </AnimatePresence>
 
       <p className="text-center text-xs text-[var(--text-muted)] mt-12 pb-10">
-        File akan otomatis diganti namanya menjadi judul video + "by Shiriu".
+        File akan diproses secara lokal di browser Anda menggunakan FFmpeg.
       </p>
     </div>
   );
