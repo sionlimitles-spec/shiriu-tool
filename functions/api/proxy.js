@@ -8,20 +8,22 @@ export async function onRequest(context) {
   }
 
   try {
-    // Tambahkan header agar tidak diblokir (khususnya TikTok)
+    // Fetch tanpa header Range agar server sumber tidak bingung
     const response = await fetch(targetUrl, {
       headers: {
-        "Referer": "https://www.tiktok.com/",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "*/*",
         "Accept-Language": "en-US,en;q=0.9",
-        "Range": "bytes=0-", 
       },
     });
 
-    // Teruskan response (file) ke frontend
+    if (!response.ok) {
+       throw new Error(`Upstream error: ${response.status}`);
+    }
+
+    // Kembalikan file sebagai stream
     return new Response(response.body, {
-      status: response.status,
+      status: 200,
       headers: {
         "Content-Type": response.headers.get("Content-Type") || "application/octet-stream",
         "Access-Control-Allow-Origin": "*",
@@ -30,7 +32,13 @@ export async function onRequest(context) {
       },
     });
   } catch (error) {
-    return new Response("Failed to fetch media", { status: 500 });
+    return new Response(JSON.stringify({ error: error.message }), {
+        status: 502,
+        headers: { 
+            "Content-Type": "application/json", 
+            "Access-Control-Allow-Origin": "*" 
+        }
+    });
   }
 }
 
