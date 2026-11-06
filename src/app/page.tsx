@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { toolsData } from "@/lib/data";
 import ToolCard from "@/components/ui/ToolCard";
+import { Search, User, Smartphone, Battery, Crown, MessageCircle, Home, LayoutGrid, Brain } from "lucide-react";
 import { motion } from "framer-motion";
-import { Sparkles, Search } from "lucide-react";
 
 export default function Home() {
   const [search, setSearch] = useState("");
@@ -13,94 +13,94 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen bg-[#050505]">
+    <div className="min-h-screen pb-32">
       
-      {/* ================= 1. HERO SECTION (VIDEO MURNI TANPA POSTER) ================= */}
-      <div className="relative w-full h-[55vh] min-h-[400px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#111] via-[#050505] to-[#0a0a0a]">
-        
-        {/* VIDEO CATBOX */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute inset-0 w-full h-full object-cover z-10 opacity-70"
-        >
-          <source src="https://files.catbox.moe/hfbu7d.mp4" type="video/mp4" />
-        </video>
-
-        {/* Overlay Gradient (Hitam pekat di bawah agar nyatu sama background) */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent z-20" />
-
-        {/* Konten Teks */}
-        <div className="relative z-30 text-center px-4 max-w-2xl mt-10">
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} 
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium mb-5"
-          >
-            <Sparkles size={12} className="text-[#00b4ff]" /> SHIRIU TOOL PREMIUM
-          </motion.div>
-          
-          <motion.h1 
-            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }}
-            className="text-4xl md:text-5xl font-black tracking-tight leading-tight mb-4 text-white drop-shadow-xl"
-          >
-            Satu Platform, <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-gray-200 to-gray-500">Semua Kebutuhan.</span>
-          </motion.h1>
-          
-          <motion.p 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            className="text-gray-300 text-sm md:text-base max-w-md mx-auto drop-shadow-md"
-          >
-            Download media, streaming, dan AI dalam genggaman.
-          </motion.p>
-        </div>
+      {/* ================= HERO IMAGE (BAGIAN ATAS) ================= */}
+      {/* Menggunakan gambar/animasi abstrak sebagai ganti video agar ringan */}
+      <div className="relative w-full h-[220px] overflow-hidden rounded-b-[40px] border-b border-white/10">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/40 to-[#050505]/90 z-10"></div>
+        <img 
+          src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop" 
+          className="w-full h-full object-cover z-0"
+          alt="Hero"
+        />
       </div>
 
-      {/* ================= 2. SECTION TOOLS (GRID 3 KOLOM) ================= */}
-      <div className="relative z-30 max-w-2xl mx-auto px-4 -mt-8 pb-20">
+      <div className="px-4 -mt-10 relative z-20">
         
-        {/* Search Bar Melayang */}
-        <div className="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 mb-8 shadow-2xl flex items-center gap-2">
-          <div className="pl-3 text-gray-500">
-            <Search size={18} />
+        {/* ================= KARTU PROFIL (GLASSMORPHISM) ================= */}
+        <div className="rounded-3xl border border-white/20 bg-white/5 backdrop-blur-2xl p-5 shadow-2xl mb-6">
+          <div className="flex flex-col gap-3.5">
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-3 text-gray-300"><User size={16} /> Username</div>
+              <span className="font-semibold text-white">Tamu</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-3 text-gray-300"><Smartphone size={16} /> Perangkat</div>
+              <span className="font-semibold text-white">Android</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <div className="flex items-center gap-3 text-gray-300"><Battery size={16} /> Baterai</div>
+              <span className="font-semibold text-white">85%</span>
+            </div>
+            <div className="flex justify-between items-center text-sm border-t border-white/10 pt-3">
+              <div className="flex items-center gap-3 text-gray-300"><Crown size={16} /> Role</div>
+              <span className="font-bold text-white flex items-center gap-1"><span className="text-yellow-400">✦</span> MEMBER</span>
+            </div>
           </div>
+        </div>
+
+        {/* ================= TOMBOL LEBAR ================= */}
+        <div className="flex flex-col gap-3 mb-8">
+          <button className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg shadow-green-500/20 active:scale-95 transition-transform">
+            <MessageCircle size={18} fill="currentColor" /> Saluran WhatsApp
+          </button>
+          <button className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl bg-white/5 border border-white/20 backdrop-blur-md text-white text-sm font-bold shadow-lg active:scale-95 transition-transform">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-[18px] h-[18px]"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg> @shiriutool
+          </button>
+        </div>
+
+        {/* ================= HEADER TOOLS & SEARCH ================= */}
+        <div className="flex items-center gap-2 mb-4">
+          <LayoutGrid size={20} className="text-white" />
+          <h2 className="text-lg font-bold text-white">Tools Populer</h2>
+        </div>
+
+        <div className="relative mb-6">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input 
             type="text" 
-            placeholder="Cari tools impianmu..." 
+            placeholder="Cari tool..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-transparent py-3 pr-4 text-sm text-white outline-none placeholder:text-gray-500"
+            className="w-full bg-white/5 border border-white/20 rounded-2xl py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-white/50 backdrop-blur-xl transition-colors placeholder:text-gray-400"
           />
         </div>
 
-        {/* Grid 3 Kolom */}
-        <div className="mb-5 flex items-center justify-between px-1">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pilih Tools</h2>
-          <span className="text-[10px] text-gray-500 bg-white/5 px-2.5 py-1 rounded-md">{filteredTools.length} Tersedia</span>
-        </div>
-
-        <motion.div 
-          initial="hidden" animate="show" 
-          variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } }}
-          className="grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4"
-        >
+        {/* ================= GRID TOOLS (3 KOLOM) ================= */}
+        <div className="grid grid-cols-3 gap-3">
           {filteredTools.map((tool) => (
-            <motion.div key={tool.id} variants={{ hidden: { opacity: 0, scale: 0.9 }, show: { opacity: 1, scale: 1 } }}>
-              <ToolCard tool={tool} />
-            </motion.div>
+            <ToolCard key={tool.id} tool={tool} />
           ))}
-        </motion.div>
+        </div>
         
         {filteredTools.length === 0 && (
-          <div className="text-center py-10 text-gray-500 text-sm">Tools tidak ditemukan.</div>
+          <div className="text-center py-10 text-gray-400 text-sm">Tool tidak ditemukan.</div>
         )}
-
-        <p className="text-center text-[10px] text-gray-600 mt-16 tracking-wider">
-          © 2026 SHIRIU TOOL. ALL RIGHTS RESERVED.
-        </p>
       </div>
+
+      {/* ================= BOTTOM NAVIGATION MELAYANG ================= */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <div className="flex items-center gap-1 p-1.5 rounded-full bg-black/40 backdrop-blur-2xl border border-white/20 shadow-2xl">
+          <button className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black">
+            <Home size={18} />
+            <span className="text-xs font-bold">Home</span>
+          </button>
+          <button className="p-2.5 text-gray-300 hover:text-white transition-colors"><LayoutGrid size={20} /></button>
+          <button className="p-2.5 text-gray-300 hover:text-white transition-colors"><Brain size={20} /></button>
+        </div>
+      </div>
+
     </div>
   );
 }
