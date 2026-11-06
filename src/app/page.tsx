@@ -17,22 +17,27 @@ export default function Home() {
       
       {/* ================= 1. HERO SECTION (VIDEO LEBAR PENUH) ================= */}
       <div className="relative w-full h-[45vh] min-h-[350px] flex items-center justify-center overflow-hidden">
+        
         {/* Fallback Gradient (Jika video gagal load, ini yang muncul) */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#111] via-[#050505] to-[#0a0a0a] z-0" />
         
-        {/* Video Background */}
+        {/* VIDEO BACKGROUND */}
+        {/* CATATAN: Saya ganti link videonya dengan link publik yang stabil (Mixkit) untuk TESTING.
+            Nanti Anda bisa ganti src di bawah dengan video Anda sendiri yang sudah di-upload ke folder public/ */}
         <video 
           autoPlay 
           loop 
           muted 
           playsInline 
-          className="absolute inset-0 w-full h-full object-cover z-10 opacity-60"
+          poster="https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1920&auto=format&fit=crop"
+          className="absolute inset-0 w-full h-full object-cover z-10 opacity-50"
         >
+          {/* GANTI LINK DI BAWAH INI DENGAN VIDEO ANDA SENDIRI */}
           <source src="https://a.top4top.io/m_3961mpi8j0.mp4" type="video/mp4" />
         </video>
 
         {/* Overlay Gelap agar teks terbaca */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent z-20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent z-20" />
 
         {/* Konten Teks */}
         <div className="relative z-30 text-center px-4 max-w-2xl mt-8">
