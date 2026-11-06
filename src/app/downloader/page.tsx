@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Settings2, Copy, Check, Image as ImageIcon, History, ChevronDown, Trash2, Cpu, Zap } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link as LinkIcon, Download, X, ClipboardPaste, Loader2, Play, Music, AlertCircle, CheckCircle2, Copy, Check, Image as ImageIcon, History, Trash2, Music2, Music3, Headphones } from "lucide-react";
 import { fetchDownloadData, DownloadResult } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,36 +17,8 @@ export default function DownloaderPage() {
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: "video" | "audio" } | null>(null);
 
-  const [videoQuality, setVideoQuality] = useState<"original" | "hd">("original");
-  const [audioBitrate, setAudioBitrate] = useState("320kbps");
-  const [showBitrateMenu, setShowBitrateMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-
-  const ffmpegRef = useRef<any>(null);
-  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false); // Khusus untuk proses FFmpeg
-  const [processMessage, setProcessMessage] = useState("");
-
-  const bitrateOptions = ["64kbps", "128kbps", "192kbps", "256kbps", "320kbps"];
-
-  const loadFFmpeg = async () => {
-    if (ffmpegLoaded && ffmpegRef.current) return;
-    
-    setProcessMessage("Menyiapkan mesin FFmpeg...");
-    const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-    const { toBlobURL } = await import('@ffmpeg/util');
-    
-    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
-    const ffmpeg = new FFmpeg();
-    ffmpegRef.current = ffmpeg;
-    
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
-    setFfmpegLoaded(true);
-  };
 
   useEffect(() => {
     const saved = localStorage.getItem("shiriu_history");
@@ -70,13 +42,6 @@ export default function DownloaderPage() {
   const getCleanFilename = (title: string, ext: string) => {
     const cleanTitle = title.replace(/[^a-zA-Z0-9\s]/g, "").trim().substring(0, 50);
     return `${cleanTitle} - by Shiriu.${ext}`;
-  };
-
-  const getEstimatedAudioSize = (bitrateStr: string) => {
-    const bitrate = parseInt(bitrateStr);
-    const duration = result?.duration ? parseInt(result.duration.split(':')[0]) * 60 + parseInt(result.duration.split(':')[1]) : 60;
-    const sizeInBytes = (bitrate * 1000 * duration) / 8;
-    return (sizeInBytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
   const handlePaste = async () => {
@@ -110,63 +75,35 @@ export default function DownloaderPage() {
     }
   };
 
-  // FUNGSI DOWNLOAD DENGAN FFMPEG (AUDIO & VIDEO)
-  const handleDownload = async (mediaUrl: string, filename: string, id: string, type: "video" | "audio") => {
+  // FUNGSI DOWNLOAD DIRECT (TANPA FFMPEG - CEPAT & STABIL)
+  const handleDownload = async (mediaUrl: string, filename: string, id: string) => {
     setDownloadingType(id);
     setDownloadProgress(0);
-    setIsProcessing(false);
 
     try {
-      setIsProcessing(true);
-      await loadFFmpeg();
-      const ffmpeg = ffmpegRef.current;
-      const { fetchFile } = await import('@ffmpeg/util');
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(mediaUrl)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("Gagal mengambil file.");
 
-      setProcessMessage("Mengunduh file asli...");
-      const response = await fetch(`/api/proxy?url=${encodeURIComponent(mediaUrl)}`);
-      if (!response.ok) throw new Error("Gagal mengambil file asli.");
-      const originalBlob = await response.blob();
+      const contentLength = response.headers.get('content-length');
+      const total = parseInt(contentLength || '0', 10);
+      let loaded = 0;
       
-      const inputExt = type === "video" ? "mp4" : "mp3";
-      const inputName = `input_${id}.${inputExt}`;
-      const outputName = `output_${id}.${inputExt}`;
-
-      setProcessMessage("Menulis ke memori...");
-      await ffmpeg.writeFile(inputName, await fetchFile(originalBlob));
-
-      let execArgs: string[] = [];
+      const reader = response.body?.getReader();
+      const chunks = [];
       
-      if (type === "audio") {
-        const bitrateNum = parseInt(audioBitrate);
-        setProcessMessage(`Mengubah bitrate ${audioBitrate}...`);
-        execArgs = ['-i', inputName, '-vn', '-b:a', `${bitrateNum}k`, outputName];
-      } else if (type === "video") {
-        if (videoQuality === "hd") {
-          setProcessMessage("Upscale 1080p (Proses lambat)...");
-          execArgs = ['-i', inputName, '-vf', 'scale=1920:1080:flags=lanczos', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'copy', outputName];
-        } else {
-          setProcessMessage("Memproses video...");
-          execArgs = ['-i', inputName, '-c', 'copy', outputName];
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          loaded += value.length;
+          if (total) setDownloadProgress(Math.round((loaded / total) * 100));
         }
       }
-
-      ffmpeg.on('progress', ({ progress }: { progress: number }) => {
-        const percent = Math.round(progress * 100);
-        setDownloadProgress(percent > 100 ? 100 : percent);
-      });
-
-      await ffmpeg.exec(execArgs);
-
-      setProcessMessage("Menyelesaikan file...");
-      const data = await ffmpeg.readFile(outputName);
       
-      await ffmpeg.deleteFile(inputName);
-      await ffmpeg.deleteFile(outputName);
-
-      const processedBlob = new Blob([data as any], { type: type === "video" ? "video/mp4" : "audio/mpeg" });
-      if (processedBlob.size === 0) throw new Error("File kosong.");
-
-      const blobUrl = window.URL.createObjectURL(processedBlob);
+      const blob = new Blob(chunks);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = filename;
@@ -174,16 +111,12 @@ export default function DownloaderPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(blobUrl);
-
-    } catch (err: any) {
-      console.error(err);
-      setError("Gagal memproses/timeout. Mengunduh file asli...");
-      window.open(mediaUrl, '_blank'); // Fallback
+    } catch (err) {
+      // Fallback: Jika proxy gagal, buka link langsung di tab baru
+      window.open(mediaUrl, '_blank');
     } finally {
-      setIsProcessing(false);
-      setDownloadProgress(0);
       setDownloadingType(null);
-      setProcessMessage("");
+      setDownloadProgress(0);
     }
   };
 
@@ -268,131 +201,106 @@ export default function DownloaderPage() {
               </div>
             </div>
             
-            <div className="p-5 flex flex-col gap-6">
+            <div className="p-5 flex flex-col gap-4">
               
-              {result.formats.some(f => f.type === "video") && (
-                <div>
-                  <h4 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-2">
-                    <Play size={16} className="text-blue-500" /> Kualitas Video (MP4)
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <button onClick={() => setVideoQuality("original")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "original" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>Original <br/><span className="text-[10px] font-normal opacity-70">Tanpa Kompres</span></button>
-                    <button onClick={() => setVideoQuality("hd")} className={`p-3 rounded-xl border text-xs font-bold transition-all ${videoQuality === "hd" ? "border-[#00b4ff] bg-[#00b4ff]/10 text-[#00b4ff]" : "border-[var(--card-border)] text-[var(--text-muted)]"}`}>HD Enhanced <br/><span className="text-[10px] font-normal opacity-70">Upscale 1080p (Lambat)</span></button>
-                  </div>
-                  {result.formats.filter(f => f.type === "video").map((format, idx) => (
-                    <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl mb-2 overflow-hidden">
-                      
-                      {/* PROGRESS BAR FIX: Hanya muncul jika ID cocok */}
-                      {downloadingType === `video-${idx}` && (
-                        <div className="absolute top-0 left-0 h-full bg-[#00b4ff]/20 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
-                      )}
-
-                      <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-bold text-[var(--text)]">{format.label} {videoQuality === "hd" ? "(Upscaled)" : ""}</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">
-                            {downloadingType === `video-${idx}` 
-                              ? (isProcessing ? `${processMessage} ${downloadProgress}%` : `Mengunduh... ${downloadProgress}%`) 
-                              : 'Klik ikon untuk unduh'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => setPreviewMedia({ url: format.url, type: "video" })} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" title="Preview">
-                            <Play size={16} />
-                          </button>
-                          <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp4'), `video-${idx}`, 'video')} disabled={downloadingType === `video-${idx}`} className="p-2.5 bg-[#00b4ff] rounded-xl text-white hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50 min-w-[36px] flex justify-center">
-                            {downloadingType === `video-${idx}` ? (isProcessing ? <Cpu size={16} className="animate-pulse" /> : <Loader2 size={16} className="animate-spin" />) : <Download size={16} />}
-                          </button>
-                        </div>
-                      </div>
+              {/* OPSI VIDEO */}
+              {result.formats.filter(f => f.type === "video").map((format, idx) => (
+                <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl overflow-hidden">
+                  {downloadingType === `video-${idx}` && (
+                    <div className="absolute top-0 left-0 h-full bg-[#00b4ff]/20 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                  )}
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-bold text-[var(--text)] flex items-center gap-2"><Play size={14} className="text-blue-500"/> Video MP4</span>
+                      <span className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                        {downloadingType === `video-${idx}` ? `Mengunduh... ${downloadProgress}%` : 'Kualitas HD Original'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              {result.formats.some(f => f.type === "audio") && (
-                <div>
-                  <h4 className="text-sm font-bold text-[var(--text)] mb-3 flex items-center gap-2">
-                    <Music size={16} className="text-purple-500" /> Kualitas Audio (MP3)
-                  </h4>
-                  
-                  <div className="relative mb-3 z-20">
-                    <button onClick={() => setShowBitrateMenu(!showBitrateMenu)} className="w-full flex items-center justify-between bg-[var(--text-muted)]/5 p-3 rounded-xl border border-[var(--card-border)] text-sm font-bold text-[var(--text)] transition-colors hover:bg-[var(--text-muted)]/10">
-                      <div className="flex items-center gap-2"><Settings2 size={16} className="text-[var(--text-muted)]"/> {audioBitrate} <span className="text-xs font-normal text-[var(--text-muted)] ml-1">({getEstimatedAudioSize(audioBitrate)})</span></div>
-                      <ChevronDown size={16} className={`transition-transform ${showBitrateMenu ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    <AnimatePresence>
-                      {showBitrateMenu && (
-                        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute bottom-full left-0 right-0 mb-2 bg-[var(--bg)] border border-[var(--card-border)] rounded-xl shadow-2xl overflow-hidden z-50">
-                          {bitrateOptions.map(bit => (
-                            <button key={bit} onClick={() => { setAudioBitrate(bit); setShowBitrateMenu(false); }} className="w-full text-left px-4 py-3 text-sm font-semibold text-[var(--text)] hover:bg-[#00b4ff]/10 hover:text-[#00b4ff] transition-colors border-b border-[var(--card-border)] last:border-0 flex justify-between items-center">
-                              {bit} <span className="text-xs font-normal text-[var(--text-muted)]">{getEstimatedAudioSize(bit)}</span>
-                            </button>
-                          ))}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {result.formats.filter(f => f.type === "audio").map((format, idx) => (
-                    <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl overflow-hidden">
-                      
-                      {/* PROGRESS BAR FIX: Hanya muncul jika ID cocok */}
-                      {downloadingType === `audio-${idx}` && (
-                        <div className="absolute top-0 left-0 h-full bg-purple-500/20 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
-                      )}
-
-                      <div className="relative z-10 flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-[13px] font-bold text-[var(--text)]">Audio MP3 ({audioBitrate})</span>
-                          <span className="text-[10px] text-[var(--text-muted)]">
-                            {downloadingType === `audio-${idx}` 
-                              ? (isProcessing ? `${processMessage} ${downloadProgress}%` : `Mengunduh... ${downloadProgress}%`) 
-                              : `Estimasi: ${getEstimatedAudioSize(audioBitrate)}`}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => setPreviewMedia({ url: format.url, type: "audio" })} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" title="Preview">
-                            <Play size={16} />
-                          </button>
-                          <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp3'), `audio-${idx}`, 'audio')} disabled={downloadingType === `audio-${idx}`} className="p-2.5 bg-purple-500 rounded-xl text-white hover:bg-purple-600 transition-colors shadow-md disabled:opacity-50 min-w-[36px] flex justify-center">
-                            {downloadingType === `audio-${idx}` ? (isProcessing ? <Cpu size={16} className="animate-pulse" /> : <Loader2 size={16} className="animate-spin" />) : <Download size={16} />}
-                          </button>
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setPreviewMedia({ url: format.url, type: "video" })} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" title="Preview">
+                        <Play size={16} />
+                      </button>
+                      <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp4'), `video-${idx}`)} disabled={downloadingType === `video-${idx}`} className="p-2.5 bg-[#00b4ff] rounded-xl text-white hover:bg-blue-600 transition-colors shadow-md disabled:opacity-50 min-w-[36px] flex justify-center">
+                        {downloadingType === `video-${idx}` ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                      </button>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              )}
+              ))}
+
+              {/* OPSI AUDIO */}
+              {result.formats.filter(f => f.type === "audio").map((format, idx) => (
+                <div key={idx} className="relative flex flex-col bg-[var(--text-muted)]/5 border border-[var(--card-border)] p-3 rounded-2xl overflow-hidden">
+                  {downloadingType === `audio-${idx}` && (
+                    <div className="absolute top-0 left-0 h-full bg-purple-500/20 z-0 transition-all duration-300" style={{ width: `${downloadProgress}%` }} />
+                  )}
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-bold text-[var(--text)] flex items-center gap-2"><Music size={14} className="text-purple-500"/> Audio MP3</span>
+                      <span className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                        {downloadingType === `audio-${idx}` ? `Mengunduh... ${downloadProgress}%` : 'Kualitas Original'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setPreviewMedia({ url: format.url, type: "audio" })} className="p-2.5 bg-[var(--card-bg)] rounded-xl text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" title="Preview">
+                        <Play size={16} />
+                      </button>
+                      <button onClick={() => handleDownload(format.url, getCleanFilename(result.title, 'mp3'), `audio-${idx}`)} disabled={downloadingType === `audio-${idx}`} className="p-2.5 bg-purple-500 rounded-xl text-white hover:bg-purple-600 transition-colors shadow-md disabled:opacity-50 min-w-[36px] flex justify-center">
+                        {downloadingType === `audio-${idx}` ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* ================= MODAL PREVIEW SUPER KEREN ================= */}
       <AnimatePresence>
         {previewMedia && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="w-full max-w-md bg-[var(--bg)] border border-[var(--card-border)] rounded-3xl overflow-hidden shadow-2xl relative">
-              <div className="flex items-center justify-between p-4 border-b border-[var(--card-border)] bg-[var(--card-bg)]">
-                <h3 className="font-bold text-[var(--text)] text-sm flex items-center gap-2">
-                  {previewMedia.type === "video" ? <Play size={16} className="text-blue-500" /> : <Music size={16} className="text-purple-500" />}
-                  Preview Media
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="w-full max-w-sm bg-[var(--card-bg)] border border-[var(--card-border)] rounded-[32px] overflow-hidden shadow-2xl relative">
+              
+              <div className="flex items-center justify-between p-4 absolute top-0 left-0 right-0 z-20">
+                <h3 className="font-bold text-white text-sm flex items-center gap-2 drop-shadow-md">
+                  {previewMedia.type === "video" ? <Play size={16} className="text-blue-400" /> : <Music size={16} className="text-purple-400" />}
+                  {previewMedia.type === "video" ? "Preview Video" : "Preview Audio"}
                 </h3>
-                <button onClick={() => setPreviewMedia(null)} className="p-2 bg-[var(--text-muted)]/10 rounded-full hover:bg-[var(--text-muted)]/20 text-[var(--text)] transition-colors">
+                <button onClick={() => setPreviewMedia(null)} className="p-2 bg-black/50 backdrop-blur-md rounded-full text-white hover:bg-black/70 transition-colors">
                   <X size={18} />
                 </button>
               </div>
               
-              <div className="p-4 bg-black flex items-center justify-center min-h-[200px]">
+              <div className="bg-black flex items-center justify-center min-h-[300px] relative overflow-hidden">
                 {previewMedia.type === "video" ? (
-                  <video src={previewMedia.url} controls autoPlay playsInline className="w-full aspect-video rounded-xl bg-black" />
+                  <video src={previewMedia.url} controls autoPlay playsInline className="w-full h-full object-contain" />
                 ) : (
-                  <div className="w-full flex flex-col items-center gap-6 py-4">
-                    <div className="w-24 h-24 rounded-full bg-purple-500/20 flex items-center justify-center animate-pulse border border-purple-500/30">
-                      <Music size={40} className="text-purple-500" />
+                  // ANIMASI AUDIO PREVIEW
+                  <div className="w-full flex flex-col items-center gap-8 py-16 px-6 relative z-10">
+                    
+                    {/* Orb Berdenyut & Berputar */}
+                    <div className="relative flex items-center justify-center w-40 h-40">
+                      {/* Efek Lingkaran Luar */}
+                      <div className="absolute inset-0 rounded-full border border-purple-500/30 animate-[spin_4s_linear_infinite]"></div>
+                      <div className="absolute inset-2 rounded-full border border-purple-400/20 animate-[spin_6s_linear_infinite_reverse]"></div>
+                      
+                      {/* Cahaya Glow */}
+                      <div className="absolute inset-4 rounded-full bg-purple-500/20 blur-xl animate-pulse"></div>
+                      
+                      {/* Bola Kaca Utama */}
+                      <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/40 to-black border border-purple-500/50 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.4)] backdrop-blur-md">
+                        <Headphones size={40} className="text-purple-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.8)]" />
+                      </div>
+
+                      {/* Not Balok Terbang (Framer Motion) */}
+                      <motion.div animate={{ y: [-10, -40], opacity: [0, 1, 0], rotate: [0, 45] }} transition={{ repeat: Infinity, duration: 2, delay: 0 }} className="absolute top-0 right-2 text-purple-400"><Music2 size={20}/></motion.div>
+                      <motion.div animate={{ y: [-10, -50], opacity: [0, 1, 0], rotate: [0, -45] }} transition={{ repeat: Infinity, duration: 2.5, delay: 0.5 }} className="absolute top-2 left-0 text-pink-400"><Music3 size={16}/></motion.div>
+                      <motion.div animate={{ y: [-10, -30], opacity: [0, 1, 0], rotate: [0, 20] }} transition={{ repeat: Infinity, duration: 1.8, delay: 1 }} className="absolute -top-4 right-1/2 text-purple-300"><Music2 size={14}/></motion.div>
                     </div>
-                    <audio src={previewMedia.url} controls autoPlay className="w-full" />
+
+                    <audio src={previewMedia.url} controls autoPlay className="w-full mt-4" />
                   </div>
                 )}
               </div>
@@ -402,7 +310,7 @@ export default function DownloaderPage() {
       </AnimatePresence>
 
       <p className="text-center text-xs text-[var(--text-muted)] mt-12 pb-10">
-        File akan diproses secara lokal di browser Anda menggunakan FFmpeg.
+        Unduhan langsung dari server sumber (Super Cepat).
       </p>
     </div>
   );
