@@ -11,13 +11,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id" suppressHydrationWarning>
+    // Tambahkan class "dark" sebagai default
+    <html lang="id" className="dark" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
-        {/* Script untuk mencegah layar berkedip saat ganti tema */}
         <script dangerouslySetInnerHTML={{
           __html: `
             try {
-              if (localStorage.theme === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+              if (localStorage.theme === 'light') {
                 document.documentElement.classList.remove('dark')
               } else {
                 document.documentElement.classList.add('dark')
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             } catch (_) {}
           `
         }} />
-        <main className="min-h-screen pb-24">{children}</main>
+        {children}
       </body>
     </html>
   );
