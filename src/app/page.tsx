@@ -12,10 +12,28 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Semua");
   const [isDark, setIsDark] = useState(true);
+  
+  // State untuk baterai asli HP
+  const [batteryLevel, setBatteryLevel] = useState<number | string>("...");
 
   useEffect(() => {
+    // Cek Mode Gelap/Terang
     if (document.documentElement.classList.contains('dark')) setIsDark(true);
     else setIsDark(false);
+
+    // Ambil data Baterai HP (Battery Status API)
+    if (typeof navigator !== "undefined" && "getBattery" in navigator) {
+      (navigator as any).getBattery().then((battery: any) => {
+        setBatteryLevel(Math.round(battery.level * 100));
+        
+        // Update jika baterai berubah
+        battery.addEventListener("levelchange", () => {
+          setBatteryLevel(Math.round(battery.level * 100));
+        });
+      });
+    } else {
+      setBatteryLevel("N/A"); // Jika browser tidak mendukung
+    }
   }, []);
 
   const toggleTheme = () => {
@@ -42,14 +60,13 @@ export default function Home() {
     <div className="min-h-screen relative pb-28">
       
       {/* ================= 1. HERO VIDEO ================= */}
-      {/* Menggunakan bg-transparent agar background body tembus */}
-      <div className="relative w-full h-[280px] overflow-hidden">
+      <div className="relative w-full h-[260px] overflow-hidden">
         <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80">
           <source src="https://files.catbox.moe/hfbu7d.mp4" type="video/mp4" />
         </video>
         
-        {/* Overlay transparan agar menyatu */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#050505] dark:from-[#050505] via-[#050505]/60 dark:via-[#050505]/60 to-transparent" />
+        {/* Overlay Gradient */}
+        <div className="absolute inset-0 z-10 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/70 to-transparent" />
         
         <button 
           onClick={toggleTheme}
@@ -60,14 +77,17 @@ export default function Home() {
       </div>
 
       {/* ================= 2. KONTEN ================= */}
-      <div className="px-4 -mt-16 relative z-30 max-w-lg mx-auto">
+      <div className="px-4 -mt-12 relative z-30 max-w-lg mx-auto">
         
         {/* Kartu Profil */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} 
-          className="rounded-[32px] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-2xl p-6 shadow-2xl mb-8"
+          className="rounded-[28px] border border-[var(--card-border)] bg-[var(--card-bg)] backdrop-blur-2xl p-5 shadow-2xl mb-8 relative overflow-hidden"
         >
-          <div className="flex flex-col gap-4">
+          {/* Efek Cahaya Tipis di Belakang Profil */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 blur-2xl rounded-full"></div>
+
+          <div className="flex flex-col gap-4 relative z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-[var(--text-muted)]">
                 <User size={18} /> <span className="text-sm font-medium">Username</span>
@@ -84,7 +104,8 @@ export default function Home() {
               <div className="flex items-center gap-3 text-[var(--text-muted)]">
                 <Battery size={18} /> <span className="text-sm font-medium">Baterai</span>
               </div>
-              <span className="font-bold text-[var(--text)] text-sm">85%</span>
+              {/* TAMPILAN BATERAI ASLI */}
+              <span className="font-bold text-[var(--text)] text-sm">{batteryLevel}%</span>
             </div>
             <div className="flex items-center justify-between border-t border-[var(--card-border)] pt-4 mt-1">
               <div className="flex items-center gap-3 text-[var(--text-muted)]">
