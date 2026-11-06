@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { toolsData } from "@/lib/data";
 import ToolCard from "@/components/ui/ToolCard";
 import BottomNav from "@/components/BottomNav";
-import { Search, LayoutGrid, Moon, Sun, User, Smartphone, Battery, Crown, MessageCircle } from "lucide-react";
+import { Search, LayoutGrid, Moon, Sun, User, Smartphone, Battery, Crown } from "lucide-react";
 import { motion } from "framer-motion";
 
 const categories = ["Semua", "Media", "Hiburan", "AI"];
@@ -54,9 +54,25 @@ export default function Home() {
   return (
     <div className="min-h-screen relative pb-28">
       
-      {/* ================= 1. HERO VIDEO ================= */}
+      {/* ================= 1. HERO VIDEO (DENGAN POSTER/GAMBAR CADANGAN) ================= */}
       <div className="relative w-full h-[260px] overflow-hidden">
-        <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover z-0 opacity-80">
+        
+        {/* Gambar Poster akan muncul seketika sebelum video selesai load */}
+        <img 
+          src="https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=1000&auto=format&fit=crop" 
+          alt="Hero Fallback" 
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        />
+        
+        {/* Video (opacity 0 sampai siap dimuat) */}
+        <video 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          preload="metadata"
+          className="absolute inset-0 w-full h-full object-cover z-0 opacity-80"
+        >
           <source src="https://files.catbox.moe/hfbu7d.mp4" type="video/mp4" />
         </video>
         
